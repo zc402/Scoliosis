@@ -8,7 +8,7 @@ import os
 import random
 import cv2
 
-def load_random_imgs_labels(batch_size, label_folder, img_folder):
+def load_imgs_labels(batch_size, label_folder, img_folder, rand):
     """
     Internal generator for loading train or test data
     :param batch_size:
@@ -20,7 +20,8 @@ def load_random_imgs_labels(batch_size, label_folder, img_folder):
     total_size = len(label_list)
     loop_range = total_size - (total_size % batch_size)
     while True:
-        random.shuffle(label_list)
+        if rand:
+            random.shuffle(label_list)
         for i in range(0, loop_range, batch_size):
             batch_label_path = label_list[i:i+batch_size]
             batch_label = [np.load(j) for j in batch_label_path]
@@ -38,7 +39,7 @@ def train_loader(batch_size):
     """
     img_folder = path.join("resized_data", "image", "training")
     label_folder = path.join("resized_data", "labels", "training")
-    loader = load_random_imgs_labels(batch_size, label_folder, img_folder)
+    loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True)
     for img_la in loader:
         yield img_la
 
@@ -51,6 +52,6 @@ def test_loader(batch_size):
     """
     img_folder = path.join("resized_data", "image", "test")
     label_folder = path.join("resized_data", "labels", "test")
-    loader = load_random_imgs_labels(batch_size, label_folder, img_folder)
+    loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=False)
     for img_la in loader:
-        yield next(loader)
+        yield img_la

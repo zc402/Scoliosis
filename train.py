@@ -13,14 +13,18 @@ import os.path as path
 import torchvision
 import matplotlib.pyplot as plt
 import cv2
+import torch.nn.functional as F
 
-def imshow(img, name):
-    # img = img * 255.0     # unnormalize
-    npimg = img.detach().cpu().numpy()
+def imshow(img, gau, name):
+    gau = F.upsample(gau, size=(img.size(2), img.size(3)), mode="bilinear")
+    gau_img = torch.cat((gau, img), dim=0)
+    gau_img = torchvision.utils.make_grid(gau_img, nrow=batch_size)
+
+    npimg = gau_img.detach().cpu().numpy()
     npimg = np.clip(npimg, 0., 1.)
     npimg = np.transpose(npimg, (1, 2, 0))
     npimg = (npimg*255.).astype(np.uint8)
-    npimg = cv2.resize(npimg, None, fx=4, fy=4)
+    npimg = cv2.resize(npimg, None, fx=4, fy=4)  # Gaussian
     cv2.imwrite(path.join("results", "%s.jpg" % name), npimg)
 
 if __name__ == "__main__":
@@ -43,7 +47,7 @@ if __name__ == "__main__":
     net.cuda()
     print(net)
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(net.parameters(), lr=0.001)
+    optimizer = optim.Adam(net.parameters(), lr=0.0001)
 
 
     step = 0
@@ -76,9 +80,10 @@ if __name__ == "__main__":
             net.eval()
             with torch.no_grad():
                 test_imgs, test_labels = next(test_data_loader)
-                test_imgs = np.asarray(test_imgs, np.float32)[:, np.newaxis, :, :] / 255.0
-                test_imgs = torch.from_numpy(test_imgs).to(device)
-                test_out = net(test_imgs)  # NCHW
-                img = torchvision.utils.make_grid(test_out[:, 0:1, ...])
-                imshow(img, str(step))
+                test_imgs = np.asarray(test_imgs, np.float32)[:, np.newaxis, :, :]
+                test_imgs_01 = test_imgs / 255.0
+                test_imgs_tensor = torch.from_numpy(test_imgs_01).to(device)
+                test_out = net(test_imgs_tensor)  # NCHW
+
+                imshow(test_imgs_tensor, test_out[:, 0:1, ...], str(step))
             net.train()
