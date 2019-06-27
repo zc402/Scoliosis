@@ -16,9 +16,9 @@ def augment_batch_img(batch_img, batch_pts, plot=False):
     """
     sometimes = lambda aug: iaa.Sometimes(0.5, aug)
     seq = iaa.Sequential([
-        sometimes(
-            iaa.CropAndPad(percent=(-0.1, 0.1))
-        )
+        iaa.CropAndPad(percent=((0., 0.), (-0.1, 0.1), (0., 0.), (-0.1, 0.1))),
+        iaa.Affine(rotate=(-10, 10)),
+        iaa.Add((-25, 25))  # change brightness
     ])
     aug_b_imgs, aug_b_pts = seq(images=batch_img, keypoints=batch_pts)
 
@@ -41,5 +41,5 @@ if __name__ == "__main__":
     # Run this script to see augmentation results
     import load_utils
     data_gen = load_utils.train_loader(5)
-    imgs, labels = next(data_gen)
-    augment_batch_img(imgs, labels, plot=True)
+    for imgs, labels in data_gen:
+        augment_batch_img(imgs, labels, plot=True)

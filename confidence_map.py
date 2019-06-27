@@ -51,9 +51,10 @@ class ConfidenceMap():
         """
         Create an image with multiple gaussian circles
         :param img:
-        :param pts:
+        :param pts: A list of points [pts][xy]
         :return:
         """
+
         maps = [self.gaussian_2d_torch(hw, pt) for pt in pts]  # Multiple maps with 1 gaussian on each of them
         maps = torch.stack(maps)
         cmap = torch.max(maps, dim=0)
@@ -103,6 +104,33 @@ class ConfidenceMap():
         NCHW = np.asarray(CNHW).transpose([1, 0, 2, 3])
         return NCHW
 
+    def find_LCenter_RCenter(self, batch_labels):
+        """
+        Find two centers: center of left top and left bottom, center of right top and right bottom
+        :param batch_labels:
+        :return: l_center r_center [N][17(joint)][xy]
+        """
+        # [4(tl tr bl br)][N][17(joint)][xy]
+        four_corner = np.asarray(self.split_labels_by_corner(batch_labels))
+        l_center = (four_corner[0, ...] + four_corner[2, ...]) / 2.  # N J xy
+        r_center = (four_corner[1, ...] + four_corner[3, ...]) / 2.
+        return l_center, r_center
+
+    def batch_gaussian_LRCenter(self, imgs, pts, zoom):
+        """
+        Generate gaussian images of L R Center
+        :return:
+        """
+        hw = np.asarray(np.asarray(imgs).shape[1:3])
+        if np.all(hw % zoom) == 0:
+            hw = hw // zoom
+        else:
+            raise RuntimeError("Image size can not be divided by %d" % zoom)
+        pts = np.array(pts) / zoom
+        pts_centers = self.find_LCenter_RCenter(pts)  # CNJO, C for lr centers, J for joint, O for coordinate xy
+        CNHW = [self.batch_gaussian(hw, pts) for pts in pts_centers]
+        NCHW = np.asarray(CNHW).transpose([1, 0, 2, 3])
+        return NCHW
 
 def main():
     import load_utils
@@ -111,7 +139,10 @@ def main():
     train_data_loader = load_utils.train_loader(10)
     train_imgs, train_labels = next(train_data_loader)
     ts = time.time()
-    NCHW_gaussian = ConfidenceMap().batch_gaussian_split_corner(train_imgs, train_labels, 4)
+    cm = ConfidenceMap()
+    NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, 4)
+    NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, 4)
+    NCHW_gaussian = np.concatenate((NCHW_corner_gau, NCHW_center_gau), axis=1)
     te = time.time()
     print("Duration for gaussians: %f" % (te-ts))  # Time duration for generating gaussians
     for n in range(NCHW_gaussian.shape[0]):

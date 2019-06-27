@@ -70,6 +70,8 @@ if __name__ == "__main__":
     train_mat_folder = path.join("data_spine", "labels", "training")
     test_img_folder = path.join("data_spine", "image", "test")
     test_mat_folder = path.join("data_spine", "labels", "test")
+    train_img_flip_folder = path.join("data_spine", "image_flip", "training")
+    train_mat_flip_folder = path.join("data_spine", "labels_flip", "training")
 
     save_train_img_folder = path.join("resized_data", "image", "training")
     save_train_label_folder = path.join("resized_data", "labels", "training")
@@ -77,7 +79,12 @@ if __name__ == "__main__":
     save_test_label_folder = path.join("resized_data", "labels", "test")
 
     # Set (256, 752) to be able to divide by 16
+    # Original training images
     resize_save((256, 752), train_img_folder, train_mat_folder,
                 save_train_img_folder, save_train_label_folder)
+    # Flipped training images
+    resize_save((256, 752), train_img_flip_folder, train_mat_flip_folder,
+                save_train_img_folder, save_train_label_folder)
+    # Test images
     resize_save((256, 752), test_img_folder, test_mat_folder,
                 save_test_img_folder, save_test_label_folder)

@@ -23,18 +23,19 @@ class SpineModel(nn.Module):
         self.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=1, padding=3, bias=False)
         rn = models.resnet18()
         self.bn1 = rn.bn1
-        self.relu = rn.relu
+        self.relu1 = rn.relu
         self.layer1 = rn.layer1
         self.layer2 = rn.layer2
         self.layer3 = rn.layer3
-        self.conv2 = nn.Conv2d(256, 256, (3, 3), padding=(1, 1))
+        self.conv2 = nn.Conv2d(256, 256, (3, 3), padding=(1, 1), bias=False)
         self.bn2 = nn.BatchNorm2d(256)
+        self.relu2 = nn.ReLU(inplace=True)
         self.conv3 = nn.Conv2d(256, 4, (7, 7), padding=(3, 3))
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
-        x = self.relu(x)
+        x = self.relu1(x)
 
         x = self.layer1(x)
         x = self.layer2(x)  # Stride 2
@@ -42,5 +43,6 @@ class SpineModel(nn.Module):
 
         x = self.conv2(x)
         x = self.bn2(x)
+        x = self.relu2(x)
         x = self.conv3(x)
         return x
