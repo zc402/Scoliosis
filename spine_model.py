@@ -30,7 +30,7 @@ class SpineModel(nn.Module):
         self.conv2 = nn.Conv2d(256, 256, (3, 3), padding=(1, 1), bias=False)
         self.bn2 = nn.BatchNorm2d(256)
         self.relu2 = nn.ReLU(inplace=True)
-        self.conv3 = nn.Conv2d(256, 4, (7, 7), padding=(3, 3))
+        self.conv3 = nn.Conv2d(256, 6, (7, 7), padding=(3, 3))
 
     def forward(self, x):
         x = self.conv1(x)

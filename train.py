@@ -54,8 +54,11 @@ if __name__ == "__main__":
     step = 0
     for train_imgs, train_labels in train_data_loader:
         train_imgs, train_labels = aug.augment_batch_img(train_imgs, train_labels)
-        # Classify labels as (top left, top right, bottom left, bottom right)
-        train_gaussian_imgs = cmap.ConfidenceMap().batch_gaussian_split_corner(train_imgs, train_labels, zoom=4)
+        cm = cmap.ConfidenceMap()
+        # Classify labels as (top left, top right, bottom left, bottom right, left center, right center)
+        NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, 4)
+        NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, 4)
+        train_gaussian_imgs = np.concatenate((NCHW_corner_gau, NCHW_center_gau), axis=1)
 
         optimizer.zero_grad()
         # To numpy, NCHW. zoom to [0, 1]
