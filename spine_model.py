@@ -64,4 +64,4 @@ class SpineModel(nn.Module):
         y = y.reshape(y.size(0), -1)
         pts = self.fc(y)
 
-        return gaussians
+        return gaussians, pts
