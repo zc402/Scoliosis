@@ -16,7 +16,7 @@ import cv2
 import torch.nn.functional as F
 
 def save_grid_images(img, gau, name):
-    gau = F.upsample(gau, size=(img.size(2), img.size(3)), mode="bilinear")
+    gau = F.interpolate(gau, size=(img.size(2), img.size(3)), mode="bilinear")
     gau_img = torch.cat((gau, img), dim=0)
     gau_img = torchvision.utils.make_grid(gau_img, nrow=batch_size)
 

@@ -25,11 +25,11 @@ def gaussian_2d_pts(img, pts):
 """
 
 class ConfidenceMap():
-    def __init__(self, sigma=1.5, thickness=1):
+    def __init__(self, sigma=1.5, thickness=2):
         self.sigma = sigma
         self.thickness = thickness
 
-    def gaussian_2d_torch(self, hw, pt):
+    def _gaussian_2d_torch(self, hw, pt):
         """
         Create an image with 1 gaussian circle
         :param hw:
@@ -48,7 +48,7 @@ class ConfidenceMap():
         return g
 
 
-    def gaussian_2d_pts_torch(self, hw, pts):
+    def _gaussian_2d_pts_torch(self, hw, pts):
         """
         Create an image with multiple gaussian circles
         :param img:
@@ -56,23 +56,23 @@ class ConfidenceMap():
         :return:
         """
 
-        maps = [self.gaussian_2d_torch(hw, pt) for pt in pts]  # Multiple maps with 1 gaussian on each of them
+        maps = [self._gaussian_2d_torch(hw, pt) for pt in pts]  # Multiple maps with 1 gaussian on each of them
         maps = torch.stack(maps)
         cmap = torch.max(maps, dim=0)
 
         return cmap[0].cpu().numpy()
 
-    def batch_gaussian(self, hw, pts):
+    def _batch_gaussian(self, hw, pts):
         """
         Create a batch of gaussian images
         :param hw:
         :param pts:
         :return: List of gaussian images, range: [0,1]
         """
-        b = [self.gaussian_2d_pts_torch(hw, p) for p in pts]
+        b = [self._gaussian_2d_pts_torch(hw, p) for p in pts]
         return b
 
-    def split_labels_by_corner(self, batch_labels):
+    def _split_labels_by_corner(self, batch_labels):
         """
         Index of: Top left, Top right, Bottom left, Bottom right
         :param batch_labels: [batch][pts][xy]
@@ -100,19 +100,19 @@ class ConfidenceMap():
         else:
             raise RuntimeError("Image size can not be divided by %d" % zoom)
         pts = np.array(pts) / zoom
-        pts_corner = self.split_labels_by_corner(pts)  # CNJO, C for corner, J for joint, O for coordinate xy
-        CNHW = [self.batch_gaussian(hw, pts) for pts in pts_corner]
+        pts_corner = self._split_labels_by_corner(pts)  # CNJO, C for corner, J for joint, O for coordinate xy
+        CNHW = [self._batch_gaussian(hw, pts) for pts in pts_corner]
         NCHW = np.asarray(CNHW).transpose([1, 0, 2, 3])
         return NCHW
 
-    def find_LCenter_RCenter(self, batch_labels):
+    def _find_LCenter_RCenter(self, batch_labels):
         """
         Find two centers: center of left top and left bottom, center of right top and right bottom
         :param batch_labels:
         :return: l_center r_center [N][17(joint)][xy]
         """
         # [4(tl tr bl br)][N][17(joint)][xy]
-        four_corner = np.asarray(self.split_labels_by_corner(batch_labels))
+        four_corner = np.asarray(self._split_labels_by_corner(batch_labels))
         l_center = (four_corner[0, ...] + four_corner[2, ...]) / 2.  # N J xy
         r_center = (four_corner[1, ...] + four_corner[3, ...]) / 2.
         return l_center, r_center
@@ -129,8 +129,8 @@ class ConfidenceMap():
             raise RuntimeError("Image size can not be divided by %d" % zoom)
         pts = np.array(pts) / zoom
 
-        pts_centers = self.find_LCenter_RCenter(pts)  # CNJO, C for lr centers, J for joint, O for coordinate xy
-        CNHW = [self.batch_gaussian(hw, pts) for pts in pts_centers]
+        pts_centers = self._find_LCenter_RCenter(pts)  # CNJO, C for lr centers, J for joint, O for coordinate xy
+        CNHW = [self._batch_gaussian(hw, pts) for pts in pts_centers]
         NCHW = np.asarray(CNHW).transpose([1, 0, 2, 3])
         return NCHW
 
@@ -139,6 +139,9 @@ class ConfidenceMap():
 
         lr_cs = zip(l_cs, r_cs)
         [cv2.line(paf_img, tuple(p1.astype(np.int32)), tuple(p2.astype(np.int32)), 255, self.thickness) for p1, p2 in lr_cs]
+        # Convert to [0,1]
+        paf_img = paf_img.astype(np.float32)
+        paf_img = paf_img / 255.
         return paf_img
 
     def batch_lines_LRCenter(self, imgs, pts, zoom):
@@ -155,7 +158,7 @@ class ConfidenceMap():
         else:
             raise RuntimeError("Image size can not be divided by %d" % zoom)
         pts = np.array(pts) / zoom
-        l_bcs, r_bcs = self.find_LCenter_RCenter(pts)  # [N][17][xy]
+        l_bcs, r_bcs = self._find_LCenter_RCenter(pts)  # [N][17][xy]
         paf_imgs = []  # NHW
         for i in range(len(imgs)):
             paf_img = self._lines_on_img(hw, l_bcs[i], r_bcs[i])
