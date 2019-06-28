@@ -4,7 +4,7 @@ Run this script to show the created maps
 """
 import numpy as np
 import torch
-import torch.nn as nn
+import cv2
 """
 def gaussian_2d(img, pt):
     sigma = 5
@@ -25,8 +25,9 @@ def gaussian_2d_pts(img, pts):
 """
 
 class ConfidenceMap():
-    def __init__(self, sigma=1.5):
+    def __init__(self, sigma=1.5, thickness=1):
         self.sigma = sigma
+        self.thickness = thickness
 
     def gaussian_2d_torch(self, hw, pt):
         """
@@ -127,10 +128,41 @@ class ConfidenceMap():
         else:
             raise RuntimeError("Image size can not be divided by %d" % zoom)
         pts = np.array(pts) / zoom
+
         pts_centers = self.find_LCenter_RCenter(pts)  # CNJO, C for lr centers, J for joint, O for coordinate xy
         CNHW = [self.batch_gaussian(hw, pts) for pts in pts_centers]
         NCHW = np.asarray(CNHW).transpose([1, 0, 2, 3])
         return NCHW
+
+    def _lines_on_img(self, hw, l_cs, r_cs):
+        paf_img = np.zeros(hw, dtype=np.uint8)
+
+        lr_cs = zip(l_cs, r_cs)
+        [cv2.line(paf_img, tuple(p1.astype(np.int32)), tuple(p2.astype(np.int32)), 255, self.thickness) for p1, p2 in lr_cs]
+        return paf_img
+
+    def batch_lines_LRCenter(self, imgs, pts, zoom):
+        """
+        Draw Part Affinity Fields (no direction, 1 dim) between each 2 center points.
+        :param imgs:
+        :param pts:
+        :param zoom:
+        :return:
+        """
+        hw = np.asarray(np.asarray(imgs).shape[1:3])
+        if np.all(hw % zoom) == 0:
+            hw = hw // zoom
+        else:
+            raise RuntimeError("Image size can not be divided by %d" % zoom)
+        pts = np.array(pts) / zoom
+        l_bcs, r_bcs = self.find_LCenter_RCenter(pts)  # [N][17][xy]
+        paf_imgs = []  # NHW
+        for i in range(len(imgs)):
+            paf_img = self._lines_on_img(hw, l_bcs[i], r_bcs[i])
+            paf_imgs.append(paf_img)
+        paf_imgs = np.asarray(paf_imgs)[:,np.newaxis]  # NCHW
+        return paf_imgs
+
 
 def main():
     import load_utils
@@ -142,15 +174,17 @@ def main():
     cm = ConfidenceMap()
     NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, 4)
     NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, 4)
-    NCHW_gaussian = np.concatenate((NCHW_corner_gau, NCHW_center_gau), axis=1)
+    NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, 4)
+    NCHW_gaussian = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_lines), axis=1)
     te = time.time()
     print("Duration for gaussians: %f" % (te-ts))  # Time duration for generating gaussians
     for n in range(NCHW_gaussian.shape[0]):
         for c in range(NCHW_gaussian.shape[1]):
-            cv2.imshow("Gaussian", train_imgs[n])
+            cv2.imshow("Image", train_imgs[n])
             g = NCHW_gaussian[n, c]
             g = cv2.resize(g, dsize=None, fx=4, fy=4)
-            cv2.imshow("Image", np.amax([train_imgs[n].astype(np.float32)/255, g], axis=0))
+            cv2.imshow("Image Heat", np.amax([train_imgs[n].astype(np.float32)/255, g], axis=0))
+            cv2.imshow("Heat Only", g)
             cv2.waitKey()
 
 if __name__ == "__main__":
