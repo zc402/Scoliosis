@@ -49,7 +49,7 @@ if __name__ == "__main__":
     criterion = nn.MSELoss()
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=481 // batch_size * 3, verbose=True)  # Be patient for 10 epoches
+        optimizer, patience=481 // batch_size * 5, verbose=True)  # Be patient for 3 epoches
 
     step = 0
     for train_imgs, train_labels in train_data_loader:
@@ -58,7 +58,8 @@ if __name__ == "__main__":
         # Classify labels as (top left, top right, bottom left, bottom right, left center, right center)
         NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, 4)
         NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, 4)
-        train_gaussian_imgs = np.concatenate((NCHW_corner_gau, NCHW_center_gau), axis=1)
+        NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, 4)
+        train_gaussian_imgs = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_lines), axis=1)
 
         optimizer.zero_grad()
         # To numpy, NCHW. zoom to [0, 1]
@@ -91,5 +92,5 @@ if __name__ == "__main__":
                 test_imgs_tensor = torch.from_numpy(test_imgs_01).to(device)
                 test_out = net(test_imgs_tensor)  # NCHW
 
-                save_grid_images(test_imgs_tensor, test_out[:, 0:1, ...], str(step))
+                save_grid_images(test_imgs_tensor, test_out[:, 6:7, ...], str(step))
             net.train()
