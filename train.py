@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 import cv2
 import torch.nn.functional as F
 from PIL import Image
+import folders as f
+import os
 
 def save_grid_images(img, gau, name):
     gau = F.interpolate(gau, size=(img.size(2), img.size(3)), mode="bilinear")
@@ -26,7 +28,7 @@ def save_grid_images(img, gau, name):
     npimg = np.transpose(npimg, (1, 2, 0))
     npimg = (npimg*255.).astype(np.uint8)
     npimg = cv2.resize(npimg, None, fx=4, fy=4)  # Gaussian
-    cv2.imwrite(path.join("results", "%s.jpg" % name), npimg)
+    cv2.imwrite(path.join(f.train_results, "%s.jpg" % name), npimg)
 
 def label_normalize_flatten(batch_labels, batch_imgs):
     """
@@ -64,10 +66,12 @@ def plot_norm_pts(batch_imgs, batch_norm_pts, name):
         for j in range(len(x_list)):
             plt.annotate(j, (x_list[j], y_list[j]), color='red', size=5)
         plt.axis("off")
-        plt.savefig(path.join("results", "%s_%d_pts.jpg" % (name, i)), dpi=400)
+        plt.savefig(path.join(f.train_results, "%s_%d_pts.jpg" % (name, i)), dpi=400)
         plt.clf()
 
 if __name__ == "__main__":
+
+    os.makedirs(f.train_results, exist_ok=True)
     if not torch.cuda.is_available():
         raise RuntimeError("GPU not available")
     batch_size = 5

@@ -70,3 +70,4 @@ def reverse(xy, resize_record):
     ny = xy[1] - top
     ny = ny / ratio
     return nx, ny
+

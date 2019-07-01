@@ -7,6 +7,8 @@ import glob
 import os
 import random
 import cv2
+import folders as f
+
 
 def load_imgs_labels(batch_size, label_folder, img_folder, rand):
     """
@@ -37,8 +39,8 @@ def train_loader(batch_size):
     :param batch_size:
     :return: batch_img, batch_label
     """
-    img_folder = path.join("resized_data", "image", "training")
-    label_folder = path.join("resized_data", "labels", "training")
+    img_folder = f.resize_train_img
+    label_folder = f.resize_train_label
     loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True)
     for img_la in loader:
         yield img_la
@@ -50,8 +52,8 @@ def test_loader(batch_size):
     :param batch_size:
     :return: batch_img, batch_label
     """
-    img_folder = path.join("resized_data", "image", "test")
-    label_folder = path.join("resized_data", "labels", "test")
+    img_folder = f.resize_test_img
+    label_folder = f.resize_test_label
     loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=False)
     for img_la in loader:
         yield img_la

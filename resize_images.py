@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import os
 import utils.bi_resize as br
 import cv2
+import folders as f
 
 def resize_save(dst_wh, img_folder, mat_folder, save_img_folder, save_label_folder, plot=False):
     """
@@ -47,7 +48,7 @@ def resize_save(dst_wh, img_folder, mat_folder, save_img_folder, save_label_fold
 
         cv2.imwrite(save_img_path, resized_image)
         np.save(save_label_path, resized_pts)
-        print(img_name)
+        print(save_label_path)
 
 
 def plot_image(img, mat):
@@ -65,26 +66,17 @@ def plot_image(img, mat):
     plt.clf()
 
 if __name__ == "__main__":
-    # Folder
-    train_img_folder = path.join("data_spine", "image", "training")
-    train_mat_folder = path.join("data_spine", "labels", "training")
-    test_img_folder = path.join("data_spine", "image", "test")
-    test_mat_folder = path.join("data_spine", "labels", "test")
-    train_img_flip_folder = path.join("data_spine", "image_flip", "training")
-    train_mat_flip_folder = path.join("data_spine", "labels_flip", "training")
 
-    save_train_img_folder = path.join("resized_data", "image", "training")
-    save_train_label_folder = path.join("resized_data", "labels", "training")
-    save_test_img_folder = path.join("resized_data", "image", "test")
-    save_test_label_folder = path.join("resized_data", "labels", "test")
+    [os.makedirs(f, exist_ok=True) for f in [f.resize_train_img, f.resize_train_label,
+                                             f.resize_test_img, f.resize_test_label]]
 
     # Set (256, 752) to be able to divide by 16
     # Original training images
-    resize_save((256, 752), train_img_folder, train_mat_folder,
-                save_train_img_folder, save_train_label_folder)
+    resize_save((256, 752), f.train_img, f.train_mat,
+                f.resize_train_img, f.resize_train_label)
     # Flipped training images
-    resize_save((256, 752), train_img_flip_folder, train_mat_flip_folder,
-                save_train_img_folder, save_train_label_folder)
+    resize_save((256, 752), f.train_img_flip, f.train_mat_flip,
+                f.resize_train_img, f.resize_train_label)
     # Test images
-    resize_save((256, 752), test_img_folder, test_mat_folder,
-                save_test_img_folder, save_test_label_folder)
+    resize_save((256, 752), f.test_img, f.test_mat,
+                f.resize_test_img, f.resize_test_label)

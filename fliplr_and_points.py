@@ -12,13 +12,7 @@ import os.path as path
 import glob
 import scipy.io
 import cv2
-
-
-train_img_folder = path.join("data_spine", "image", "training")
-train_mat_folder = path.join("data_spine", "labels", "training")
-
-train_img_flip_folder = path.join("data_spine", "image_flip", "training")
-train_mat_flip_folder = path.join("data_spine", "labels_flip", "training")
+import folders as f
 
 def flip_lr(img_folder, mat_folder, save_img_folder, save_label_folder):
     # List of path
@@ -42,13 +36,14 @@ def flip_lr(img_folder, mat_folder, save_img_folder, save_label_folder):
         # Save mat back
         mat_recover = {"p2":pts_recover}
         flip_name = "%s_flip.jpg" % img_basename
-        flip_img_path = path.join(train_img_flip_folder, flip_name)
-        flip_mat_path = path.join(train_mat_flip_folder, flip_name)
+        flip_img_path = path.join(save_img_folder, flip_name)
+        flip_mat_path = path.join(save_label_folder, flip_name)
         scipy.io.savemat(flip_mat_path, mat_recover)
         cv2.imwrite(flip_img_path, img_flip)
+        print(flip_img_path)
 
 
 if __name__ == '__main__':
-    os.makedirs(train_img_flip_folder, exist_ok=True)
-    os.makedirs(train_mat_flip_folder, exist_ok=True)
-    flip_lr(train_img_folder, train_mat_folder, train_img_flip_folder, train_mat_flip_folder)
+
+    [os.makedirs(p, exist_ok=True) for p in [f.train_img_flip, f.train_mat_flip]]
+    flip_lr(f.train_img, f.train_mat, f.train_img_flip, f.train_mat_flip)

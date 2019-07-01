@@ -2,18 +2,6 @@ import torchvision.models as models
 import torch
 import torch.nn as nn
 
-"""
-def spine_model():
-    # No avgpool and fc
-    image_layers = list(models.resnet18().children())[:-2]
-    # Rewrite 1st layer to support gray scale image
-    image_layers[0] = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-    conv = nn.Conv2d(512, 4, (7, 7), padding=(3, 3))
-    image_layers.append(conv)
-    image_model = nn.Sequential(*image_layers)
-    print(list(image_model.children()))
-    return image_model
-"""
 
 
 class SpineModel(nn.Module):
