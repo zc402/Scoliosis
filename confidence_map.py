@@ -25,7 +25,7 @@ def gaussian_2d_pts(img, pts):
 """
 
 class ConfidenceMap():
-    def __init__(self, sigma=1.5, thickness=2):
+    def __init__(self, sigma=0.90, thickness=1):
         self.sigma = sigma
         self.thickness = thickness
 
@@ -175,9 +175,9 @@ def main():
     train_imgs, train_labels = next(train_data_loader)
     ts = time.time()
     cm = ConfidenceMap()
-    NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, 4)
-    NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, 4)
-    NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, 4)
+    NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, 8)
+    NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, 8)
+    NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, 8)
     NCHW_gaussian = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_lines), axis=1)
     te = time.time()
     print("Duration for gaussians: %f" % (te-ts))  # Time duration for generating gaussians
@@ -185,7 +185,7 @@ def main():
         for c in range(NCHW_gaussian.shape[1]):
             cv2.imshow("Image", train_imgs[n])
             g = NCHW_gaussian[n, c]
-            g = cv2.resize(g, dsize=None, fx=4, fy=4)
+            g = cv2.resize(g, dsize=None, fx=8, fy=8)
             cv2.imshow("Image Heat", np.amax([train_imgs[n].astype(np.float32)/255, g], axis=0))
             cv2.imshow("Heat Only", g)
             cv2.waitKey()

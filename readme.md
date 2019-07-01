@@ -1,4 +1,5 @@
 # Usage
+
 - Extract data_spine.zip to ../ScoliosisData/
 - Run `python3 fliplr_and_points.py` to generate fliplr images
 - Run `python3 plot_points` to plot labels on images (optional)

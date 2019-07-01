@@ -24,3 +24,4 @@ resize_test_label = path.join(resized_data, "labels", "test")
 
 # Train
 train_results = path.join(data_root, "train_resutls")  # Results output folder
+checkpoint = path.join(data_root, "checkpoint")
