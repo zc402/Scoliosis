@@ -76,10 +76,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     os.makedirs(f.train_results, exist_ok=True)
+    os.makedirs(f.checkpoint, exist_ok=True)
+
     if not torch.cuda.is_available():
         raise RuntimeError("GPU not available")
     batch_size = args.s
-    print("Training with batch size: 5")
+    print("Training with batch size: %d" % batch_size)
     train_data_loader = load_utils.train_loader(batch_size)
     test_data_loader = load_utils.test_loader(batch_size)
     # train_imgs, train_labels = next(train_data_loader)
@@ -141,7 +143,7 @@ if __name__ == "__main__":
             print("Model saved")
 
         # Test
-        if step % 4 == 0:
+        if step % 100 == 0:
             net.eval()
             with torch.no_grad():
                 test_imgs, test_labels = next(test_data_loader)
