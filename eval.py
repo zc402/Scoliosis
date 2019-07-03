@@ -47,7 +47,13 @@ def plot_test_images():
         img_heats = (img_bgr / 2.) + (color_heats / 2.)
         ch_HWCo = np.split(img_heats, img_heats.shape[2], axis=2)  # CH [H W 1 CO]
         ch_HWCo = [np.squeeze(HW1Co, axis=2) for HW1Co in ch_HWCo]  # CH [H W CO]
-        grid_image = np.concatenate(ch_HWCo, axis=1)  # Concat to W dim, H W C
+
+        lt_rt_img = np.amax(ch_HWCo[0:2], axis=0)
+        lb_rb_img = np.amax(ch_HWCo[2:4], axis=0)
+        lc_rc_img = np.amax(ch_HWCo[4:6], axis=0)
+        paf_img = ch_HWCo[6]
+        img_bgr = img_bgr[:,:,0,:] * np.ones([3])  # Expand color channels 1->3
+        grid_image = np.concatenate([img_bgr, lt_rt_img, lb_rb_img, lc_rc_img, paf_img], axis=1)  # Concat to Width dim, H W C
         grid_image = grid_image.astype(np.uint8)
         img_name = path.basename(img_path)
         cv2.imwrite(path.join(f.evaluation, img_name), grid_image)
