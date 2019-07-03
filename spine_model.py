@@ -13,6 +13,7 @@ class SpineModelPAF(nn.Module):
         top_layers = list(list(vgg19.children())[0].children())
         top_layers[0] = nn.Conv2d(1, 64, kernel_size=3, padding=1)
         tops = top_layers[:33]  # Top 10 (conv batch relu)*10 + maxpool * 3
+        tops.pop(26)  # delete third max pool
         [tops.append(l) for l in self.make_conv_layers(512, 256)]
         [tops.append(l) for l in self.make_conv_layers(256, 128)]
         self.model_0 = nn.Sequential(*tops)  # out: 32, 94

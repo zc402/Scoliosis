@@ -72,7 +72,7 @@ def plot_norm_pts(batch_imgs, batch_norm_pts, name):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train network.')
-    parser.add_argument('-s', type=int, default=5, help='batch size')
+    parser.add_argument('-s', type=int, default=3, help='batch size')
     args = parser.parse_args()
 
     os.makedirs(f.train_results, exist_ok=True)
@@ -96,18 +96,17 @@ if __name__ == "__main__":
         print("New model created")
 
     net.cuda()
-    print(net)
 
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=481 // batch_size * 5, verbose=True)  # Be patient for 3 epoches
+        optimizer, patience=6000, verbose=True)  # Be patient for n steps
 
     step = 0
     for train_imgs, train_labels in train_data_loader:
         train_imgs, train_labels = aug.augment_batch_img(train_imgs, train_labels)
         cm = cmap.ConfidenceMap()
         # Classify labels as (top left, top right, bottom left, bottom right, left center, right center)
-        heat_scale = 8
+        heat_scale = 4
         NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
         NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
         NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, heat_scale)
@@ -129,13 +128,14 @@ if __name__ == "__main__":
         # point regression loss
         norm_labels = torch.from_numpy(norm_labels).to(device)
         loss2 = criterion(loss2_paf_img, train_gaussian_imgs[:, 6:, ...])
-        loss = loss1 + loss2  # pcm + paf
+        loss = loss1 + (loss2 / 10)  # pcm + paf
         loss.backward()
         optimizer.step()
         step = step + 1
         loss_value = loss.item()
-        print("%f" % loss_value)
         scheduler.step(loss_value)
+        lr = optimizer.param_groups[0]['lr']
+        print("Loss: %f, LR: %f" % (loss_value, lr))
 
         # Save
         if step % 100 == 0:
