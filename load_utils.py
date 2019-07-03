@@ -8,6 +8,7 @@ import os
 import random
 import cv2
 import folders as f
+import csv
 
 
 def load_imgs_labels(batch_size, label_folder, img_folder, rand):
@@ -57,3 +58,25 @@ def test_loader(batch_size):
     loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=False)
     for img_la in loader:
         yield img_la
+
+
+# CSV Loader
+
+def load_filename_angle(folder):
+    """
+    Load filename and corresponding angle
+    :return: list of [ [[filename]], [[a1][a2][a3]] ]
+    """
+    angle_path = path.join(folder, "angles.csv")
+    filename_path = path.join(folder, "filenames.csv")
+
+    with open(angle_path, mode='r') as angle_csv, open(filename_path, mode='r') as filename_csv:
+        csv_reader = csv.reader(filename_csv)
+        filenames = list(csv_reader)
+        csv_reader = csv.reader(angle_csv)
+        angles = list(csv_reader)
+    assert len(filenames) == len(angles)
+    return zip(filenames, angles)
+
+
+def load_test_fname_angle(): load_filename_angle(f.csv_test)

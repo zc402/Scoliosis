@@ -29,3 +29,7 @@ checkpoint = path.join(data_root, "checkpoint")
 
 # Eval
 evaluation = path.join(data_root, "evaluation")
+
+# Angle csv
+csv_test = path.join(data_spine, "labels", "test")
+csv_train = path.join(data_spine, "labels", "training_csv")
