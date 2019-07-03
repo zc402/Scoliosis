@@ -5,3 +5,5 @@
 - Run `python3 plot_points` to plot labels on images (optional)
 - Run `python3 resize_images.py` to shrink images to same size
 - Run `python3 train.py` to train the network
+
+- Run `python3 eval.py` to plot test output to ../ScoliosisData/evaluation
