@@ -1,4 +1,5 @@
 import os.path as path
+
 # Fliplr
 data_root = path.join("..", "ScoliosisData")
 data_spine = path.join(data_root, "data_spine")
@@ -25,3 +26,6 @@ resize_test_label = path.join(resized_data, "labels", "test")
 # Train
 train_results = path.join(data_root, "train_resutls")  # Results output folder
 checkpoint = path.join(data_root, "checkpoint")
+
+# Eval
+evaluation = path.join(data_root, "evaluation")

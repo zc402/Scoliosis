@@ -1,6 +1,7 @@
 import numpy as np
 import spine_model
 import torch
+import os
 import os.path as path
 import glob
 import folders as f
@@ -41,7 +42,6 @@ def plot_test_images():
         bgr_colors = colors[:, ::-1]  # [Channel][Color]
         np_heats = np_heats[..., np.newaxis]  # HW[Channel][Color] [0,1]
         color_heats = np_heats * bgr_colors  # HW[Channel][Color]
-        # img_bgr = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2BGR)
         img_bgr = np.asarray(img_gray, np.float32)[..., np.newaxis][..., np.newaxis]  # [H][W][Ch][Co] [0,255]
 
         img_heats = (img_bgr / 2.) + (color_heats / 2.)
@@ -49,8 +49,12 @@ def plot_test_images():
         ch_HWCo = [np.squeeze(HW1Co, axis=2) for HW1Co in ch_HWCo]  # CH [H W CO]
         grid_image = np.concatenate(ch_HWCo, axis=1)  # Concat to W dim, H W C
         grid_image = grid_image.astype(np.uint8)
-        cv2.imshow("image", grid_image)
-        cv2.waitKey()
+        img_name = path.basename(img_path)
+        cv2.imwrite(path.join(f.evaluation, img_name), grid_image)
+        print(img_name)
+        # cv2.imshow("image", grid_image)
+        # cv2.waitKey()
 
 if __name__ == '__main__':
+    os.makedirs(f.evaluation, exist_ok=True)
     plot_test_images()
