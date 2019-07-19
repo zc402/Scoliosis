@@ -11,17 +11,22 @@ import folders as f
 import csv
 
 
-def load_imgs_labels(batch_size, label_folder, img_folder, rand):
+def load_imgs_labels(batch_size, label_folder, img_folder, rand, angle_folder=None):
     """
     Internal generator for loading train or test data
     :param batch_size:
     :param label_folder:
     :param img_folder:
+    :param angle_folder: The folder that contains "angles.csv" and "filenames.csv"
     :return: imgs, labels
     """
     label_list = glob.glob(path.join(label_folder, "*"))
     total_size = len(label_list)
     loop_range = total_size - (total_size % batch_size)
+    if angle_folder is not None:  # Load filenames.csv angles.csv
+        filenames, angles = load_filename_angle(angle_folder)  # List of [filename, angles]
+    else:
+        filenames, angles = None, None
     while True:
         if rand:
             random.shuffle(label_list)
@@ -32,9 +37,15 @@ def load_imgs_labels(batch_size, label_folder, img_folder, rand):
             batch_img_name = [path.splitext(path.basename(j))[0] for j in batch_label_path]
             batch_img_path = [path.join(img_folder, name) for name in batch_img_name]
             batch_img = [cv2.imread(p, cv2.IMREAD_GRAYSCALE) for p in batch_img_path]
-            yield batch_img, batch_label
+            if angle_folder is not None:
+                batch_basename = [path.basename(fi).replace(".npy", "") for fi in batch_label_path]
+                batch_angles = [angles[filenames.index(fi)] for fi in batch_basename]
+                batch_angles = [list(map(float, a)) for a in batch_angles]
+                yield batch_img, batch_label, batch_angles
+            else:
+                yield batch_img, batch_label
 
-def train_loader(batch_size):
+def train_loader(batch_size, load_angle=False):
     """
     Training data generator
     :param batch_size:
@@ -42,12 +53,16 @@ def train_loader(batch_size):
     """
     img_folder = f.resize_train_img
     label_folder = f.resize_train_label
-    loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True)
+    if load_angle:
+        loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True,
+                                  angle_folder=f.train_angle)
+    else:
+        loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True)
     for img_la in loader:
         yield img_la
 
 
-def test_loader(batch_size):
+def test_loader(batch_size, load_angle=False):
     """
     Test data generator
     :param batch_size:
@@ -55,7 +70,11 @@ def test_loader(batch_size):
     """
     img_folder = f.resize_test_img
     label_folder = f.resize_test_label
-    loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=False)
+    if load_angle:
+        loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True,
+                                  angle_folder=f.test_angle)
+    else:
+        loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=False)
     for img_la in loader:
         yield img_la
 
@@ -72,11 +91,11 @@ def load_filename_angle(folder):
 
     with open(angle_path, mode='r') as angle_csv, open(filename_path, mode='r') as filename_csv:
         csv_reader = csv.reader(filename_csv)
-        filenames = list(csv_reader)
+        filenames = list(csv_reader)  # Each line is a list with 1 element
+        filenames = list(map(lambda x: x[0], filenames))
         csv_reader = csv.reader(angle_csv)
         angles = list(csv_reader)
     assert len(filenames) == len(angles)
-    return zip(filenames, angles)
+    return filenames, angles
 
 
-def load_test_fname_angle(): load_filename_angle(f.csv_test)

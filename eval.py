@@ -8,8 +8,17 @@ import folders as f
 import cv2
 import torch.nn.functional as F
 
-def plot_test_images():
-    test_imgs = glob.glob(path.join(f.resize_test_img, '*'))  # Wildcard of test images
+def plot_validation_set():
+    # Validation Set
+    plot_test_images(f.resize_test_img, f.validation_plot_out)
+
+def plot_submit_test_set():
+    # Test set to be submitted
+    plot_test_images(f.resize_submit_test_img, f.submit_test_plot_out)
+
+def plot_test_images(img_folder, out_folder):
+    os.makedirs(out_folder, exist_ok=True)
+    test_imgs = glob.glob(path.join(img_folder, '*'))  # Wildcard of test images
     device = torch.device("cuda")  # CUDA
     net = spine_model.SpineModelPAF()  # Spine Network Model
     net.eval()
@@ -56,11 +65,10 @@ def plot_test_images():
         grid_image = np.concatenate([img_bgr, lt_rt_img, lb_rb_img, lc_rc_img, paf_img], axis=1)  # Concat to Width dim, H W C
         grid_image = grid_image.astype(np.uint8)
         img_name = path.basename(img_path)
-        cv2.imwrite(path.join(f.evaluation, img_name), grid_image)
+        cv2.imwrite(path.join(out_folder, img_name), grid_image)
         print(img_name)
         # cv2.imshow("image", grid_image)
         # cv2.waitKey()
 
 if __name__ == '__main__':
-    os.makedirs(f.evaluation, exist_ok=True)
-    plot_test_images()
+    plot_submit_test_set()

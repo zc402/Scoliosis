@@ -87,7 +87,7 @@ if __name__ == "__main__":
     # train_imgs, train_labels = next(train_data_loader)
     device = torch.device("cuda")
 
-    save_path = path.join(f.checkpoint, "checkpoint.pth")
+    save_path = f.checkpoint_heat_path
     net = spine_model.SpineModelPAF()
     if path.exists(save_path):
         net.load_state_dict(torch.load(save_path))
