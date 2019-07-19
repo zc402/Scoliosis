@@ -10,10 +10,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import spine_augmentation as aug
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", default=5, required=False, help="batch size")
+    parser.add_argument("-s", default=5, type=int, required=False, help="batch size")
     args = parser.parse_args()
     batch_size = args.s
     train_data_loader = load_utils.train_loader(batch_size, load_angle=True)
@@ -46,6 +47,7 @@ if __name__ == "__main__":
     step = 0
     device = torch.device("cuda")
     for train_imgs, train_labels, train_angles in train_data_loader:
+        train_imgs, train_labels = aug.augment_batch_img(train_imgs, train_labels)
 
         criterion = nn.MSELoss()
         # To numpy, NCHW. normalize to [0, 1]
@@ -82,7 +84,7 @@ if __name__ == "__main__":
         # Test
         if step % 100 == 0:
             net_angle.eval()
-            with torch.no_grad:
+            with torch.no_grad():
                 test_imgs, _, test_angles= next(test_data_loader)
                 norm_test_imgs = np.asarray(test_imgs, np.float32)[:, np.newaxis, :, :] / 255.0
                 t_test_imgs = torch.from_numpy(norm_test_imgs).to(device)
