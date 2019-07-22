@@ -72,7 +72,8 @@ def plot_norm_pts(batch_imgs, batch_norm_pts, name):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train network.')
-    parser.add_argument('-s', type=int, default=3, help='batch size')
+    parser.add_argument('-s', type=int, default=5, help='batch size')
+    parser.add_argument("--trainval", action='store_true', default=False)
     args = parser.parse_args()
 
     os.makedirs(f.train_results, exist_ok=True)
@@ -82,18 +83,36 @@ if __name__ == "__main__":
         raise RuntimeError("GPU not available")
     batch_size = args.s
     print("Training with batch size: %d" % batch_size)
-    train_data_loader = load_utils.train_loader(batch_size)
+    if args.trainval:  # Final training, use train and val set
+        train_data_loader = load_utils.train_loader(batch_size, use_trainval=True)
+        print("--- Using [train, val] set as training set!")
+    else:
+        train_data_loader = load_utils.train_loader(batch_size)
     test_data_loader = load_utils.test_loader(batch_size)
-    # train_imgs, train_labels = next(train_data_loader)
     device = torch.device("cuda")
 
-    save_path = f.checkpoint_heat_path
     net = spine_model.SpineModelPAF()
-    if path.exists(save_path):
-        net.load_state_dict(torch.load(save_path))
-        print("Model loaded")
-    else:
-        print("New model created")
+    # Load checkpoint
+    # If in trainval mode, no "trainval" checkpoint found,
+    # and the checkpoint for "train" mode exists,
+    # then load the "train" checkpoint for "trainval" training
+    if not args.trainval:
+        save_path = f.checkpoint_heat_path
+        if path.exists(save_path):
+            net.load_state_dict(torch.load(save_path))
+            print("Model loaded")
+        else:
+            print("New model created")
+    else: # Trainval mode
+        save_path = f.checkpoint_heat_trainval_path
+        if path.exists(save_path):
+            net.load_state_dict(torch.load(save_path))
+            print("Load model weights from [trainval] checkpoint")
+        elif path.exists(f.checkpoint_heat_path):
+            net.load_state_dict(torch.load(f.checkpoint_heat_path))
+            print("No [trainval] checkpoint but [train] checkpoint exists. Load [train]")
+        else:
+            print("No [trainval] or [train] checkpoint, training [train, val] from scratch")
 
     net.cuda()
 
@@ -141,6 +160,10 @@ if __name__ == "__main__":
         if step % 100 == 0:
             torch.save(net.state_dict(), save_path)
             print("Model saved")
+
+        if lr < 10e-5:
+            print("Stop on plateau")
+            break
 
         # Test
         if step % 100 == 0:

@@ -100,12 +100,12 @@ def eval_submit_testset():
 
         np_norm_img = np_img / 255.
         t_norm_img = torch.from_numpy(np_norm_img).to(device)
-
-        out_pcm, out_paf, _, _ = net_heat(t_norm_img)
-        an123 = net_angle(out_paf)
+        with torch.no_grad():
+            out_pcm, out_paf, _, _ = net_heat(t_norm_img)
+            an123 = net_angle(out_paf)
         np_an123 = an123.detach().cpu().numpy()
         np_an123 = np_an123[0] * 90.  # batch size 1
-        np_an123 = np.clip(np_an123, a_min=0, a_max=200)
+        np_an123 = np.clip(np_an123, a_min=0, a_max=100)
         result_line = [filename, np_an123[0], np_an123[1], np_an123[2]]
         result_name_an123.append(result_line)
         print(filename)

@@ -36,8 +36,10 @@ submit_test_img_lesshead = path.join(data_root, "submit_test_images_lesshead")
 # Train
 train_results = path.join(data_root, "train_resutls")  # Results output folder
 checkpoint = path.join(data_root, "checkpoint")
-checkpoint_heat_path = path.join(checkpoint, "checkpoint.pth")
+checkpoint_heat_path = path.join(checkpoint, "checkpoint.pth")  # -heat
 checkpoint_angle_path = path.join(checkpoint, "checkpoint-angle.pth")
+checkpoint_heat_trainval_path = path.join(checkpoint, "checkpoint-heat-trainval.pth")
+checkpoint_angle_trainval_path = path.join(checkpoint, "checkpoint-angle-trainval.path")
 
 # Eval
 validation_plot_out = path.join(data_root, "validation_plot")

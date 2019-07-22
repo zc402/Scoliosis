@@ -49,14 +49,18 @@ def load_imgs_labels(batch_size, label_folder, img_folder, rand, angle_folder=No
             else:
                 yield batch_img, batch_label
 
-def train_loader(batch_size, load_angle=False):
+def train_loader(batch_size, load_angle=False, use_trainval=False):
     """
     Training data generator
     :param batch_size:
     :return: batch_img, batch_label
     """
-    img_folder = f.resize_train_img
-    label_folder = f.resize_train_label
+    if use_trainval:  # Use all samples at final training
+        img_folder = f.resize_trainval_img
+        label_folder = f.resize_trainval_label
+    else:  # Use train set, val set remains for validation
+        img_folder = f.resize_train_img
+        label_folder = f.resize_train_label
     if load_angle:
         loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True,
                                   angle_folder=f.train_angle)

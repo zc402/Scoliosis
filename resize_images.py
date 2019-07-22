@@ -94,7 +94,8 @@ if __name__ == "__main__":
 
     [os.makedirs(f, exist_ok=True) for f in [f.resize_train_img, f.resize_train_label,
                                              f.resize_test_img, f.resize_test_label,
-                                             f.resize_submit_test_img]]
+                                             f.resize_submit_test_img, f.resize_trainval_img,
+                                             f.resize_trainval_label]]
 
     # Set (256, 752) to be able to divide by 16
     # Resize, crop submit test images
