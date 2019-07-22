@@ -68,6 +68,28 @@ def plot_image(img, mat):
     plt.show()
     plt.clf()
 
+# def cut(img_folder):
+
+def less_head(img_folder):
+    # Crop top and bottom area
+    file_list = glob.glob(path.join(img_folder, "*.jpg"))
+    for file in file_list:
+        img = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        h = img.shape[0]
+        head_area = int(0.15 * h)
+        leg_area = int(0.15 * h)
+        img = img[head_area:, :]
+        img = img[:-leg_area, :]
+        cv2.imwrite(file, img)
+
+def crop(img_folder):
+    # Crop an image an save to it's original place
+    file_list = glob.glob(path.join(img_folder, "*.jpg"))
+    for file in file_list:
+        img = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        img = img[88: 88+752, 32: 32+256]
+        cv2.imwrite(file, img)
+
 if __name__ == "__main__":
 
     [os.makedirs(f, exist_ok=True) for f in [f.resize_train_img, f.resize_train_label,
@@ -75,8 +97,17 @@ if __name__ == "__main__":
                                              f.resize_submit_test_img]]
 
     # Set (256, 752) to be able to divide by 16
-    # Submit test images
-    resize_save((320, 928), f.submit_test_img, None, f.resize_submit_test_img, None)
+    # Resize, crop submit test images
+    resize_save((384, 1128), f.submit_test_img, None, f.resize_submit_test_img, None)  # Was (320, 928)
+    less_head(f.resize_submit_test_img)
+    crop(f.resize_submit_test_img)
+    # Train-val folder for final training
+    resize_save((256, 752), f.train_img, f.train_mat, f.resize_trainval_img, f.resize_trainval_label)
+    resize_save((256, 752), f.val_img, f.val_mat, f.resize_trainval_img, f.resize_trainval_label)
+    resize_save((256, 752), f.train_img_flip, f.train_mat_flip, f.resize_trainval_img, f.resize_trainval_label)
+    resize_save((256, 752), f.val_img_flip, f.val_mat_flip, f.resize_trainval_img, f.resize_trainval_label)
+
+
     # Original training images
     resize_save((256, 752), f.train_img, f.train_mat,
                 f.resize_train_img, f.resize_train_label)
@@ -84,5 +115,5 @@ if __name__ == "__main__":
     resize_save((256, 752), f.train_img_flip, f.train_mat_flip,
                 f.resize_train_img, f.resize_train_label)
     # Test images
-    resize_save((256, 752), f.test_img, f.test_mat,
+    resize_save((256, 752), f.val_img, f.val_mat,
                 f.resize_test_img, f.resize_test_label)

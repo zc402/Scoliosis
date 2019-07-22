@@ -10,12 +10,16 @@ train_mat = path.join(data_spine, "labels", "training")
 train_img_flip = path.join(data_spine, "image_flip", "training")
 train_mat_flip = path.join(data_spine, "labels_flip", "training")
 
+# Create train-val set for final training
+val_img_flip = path.join(data_spine, "image_flip", "test")
+val_mat_flip = path.join(data_spine, "labels_flip", "test")
+
 # Plot points
 plot = path.join(data_root, "plot_label_on_image")
 
 # Resize
-test_img = path.join(data_spine, "data", "test")
-test_mat = path.join(data_spine, "labels", "test")
+val_img = path.join(data_spine, "data", "test")
+val_mat = path.join(data_spine, "labels", "test")
 
 resized_data = path.join(data_root, "resized_data")
 resize_train_img = path.join(resized_data, "image", "training")
@@ -24,6 +28,10 @@ resize_test_img = path.join(resized_data, "image", "test")
 resize_test_label = path.join(resized_data, "labels", "test")
 submit_test_img = path.join(data_root, "submit_test_images")
 resize_submit_test_img = path.join(resized_data, "image", "submit_test")
+
+# Temporal folder for images with less head and leg areas
+submit_test_img_lesshead = path.join(data_root, "submit_test_images_lesshead")
+
 
 # Train
 train_results = path.join(data_root, "train_resutls")  # Results output folder
@@ -37,4 +45,8 @@ submit_test_plot_out = path.join(data_root, "evaluation-submit_test")
 
 # Angle csv
 train_angle = path.join(data_spine, "labels", "training")
-test_angle = path.join(data_spine, "labels", "test")
+val_angle = path.join(data_spine, "labels", "test")
+
+# Submit
+resize_trainval_img = path.join(resized_data, "image", "train-val")
+resize_trainval_label = path.join(data_spine, "labels", "train-val")

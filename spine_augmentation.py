@@ -37,6 +37,22 @@ def augment_batch_img(batch_img, batch_pts, plot=False):
             ia.imshow(np.hstack([image_before, image_after]))
     return aug_b_imgs, aug_b_pts
 
+def augment_batch_img_for_angle(batch_img, batch_pts, plot=False):
+    """
+    Image augmentation, used when training
+    :param batch_img: [B,H,W,C]
+    :param batch_pts: [B,number,xy]
+    :return: aug_b_img, aug_b_pts
+    """
+    sometimes = lambda aug: iaa.Sometimes(0.5, aug)
+    seq = iaa.Sequential([
+        iaa.CropAndPad(percent=((0., 0.), (-0.1, 0.1), (0., 0.), (-0.1, 0.1))),
+        iaa.Add((-25, 25))  # change brightness
+    ])
+    aug_b_imgs, aug_b_pts = seq(images=batch_img, keypoints=batch_pts)
+
+    return aug_b_imgs, aug_b_pts
+
 if __name__ == "__main__":
     # Run this script to see augmentation results
     import load_utils

@@ -38,7 +38,11 @@ def load_imgs_labels(batch_size, label_folder, img_folder, rand, angle_folder=No
             batch_img_path = [path.join(img_folder, name) for name in batch_img_name]
             batch_img = [cv2.imread(p, cv2.IMREAD_GRAYSCALE) for p in batch_img_path]
             if angle_folder is not None:
+                # Name to be matched with angles
+
                 batch_basename = [path.basename(fi).replace(".npy", "") for fi in batch_label_path]
+                batch_basename = [n.replace("_flip", "") for n in batch_basename]
+
                 batch_angles = [angles[filenames.index(fi)] for fi in batch_basename]
                 batch_angles = [list(map(float, a)) for a in batch_angles]
                 yield batch_img, batch_label, batch_angles
@@ -72,7 +76,7 @@ def test_loader(batch_size, load_angle=False):
     label_folder = f.resize_test_label
     if load_angle:
         loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True,
-                                  angle_folder=f.test_angle)
+                                  angle_folder=f.val_angle)
     else:
         loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=False)
     for img_la in loader:

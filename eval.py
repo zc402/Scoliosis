@@ -70,5 +70,51 @@ def plot_test_images(img_folder, out_folder):
         # cv2.imshow("image", grid_image)
         # cv2.waitKey()
 
+def eval_submit_testset():
+    import csv
+    result_name_an123 = []  # Parsing results to be wrote
+    submit_example = path.join(f.submit_test_img, "sample_submission.csv")
+    with open(submit_example, 'r') as example:
+        reader = csv.reader(example)
+        example_content = list(reader)
+        result_name_an123.append(example_content[0])  # Title line
+        name_an123 = example_content[1:]  # Exclude first title line "name, an1, an2, an3"
+
+    net_heat = spine_model.SpineModelPAF()
+    net_angle = spine_model.CobbAngleModel()
+    net_heat.cuda()
+    net_heat.eval()
+    net_angle.cuda()
+    net_angle.eval()
+    net_heat.load_state_dict(torch.load(f.checkpoint_heat_path))
+    net_angle.load_state_dict(torch.load(f.checkpoint_angle_path))
+
+    device = torch.device("cuda")  # Input device
+
+    filename_list = list(zip(*name_an123))[0]
+    for filename in filename_list:
+        resize_filename = path.join(f.resize_submit_test_img, filename + ".jpg")
+        np_img = cv2.imread(resize_filename, cv2.IMREAD_GRAYSCALE)
+        np_img = [[np_img]]  # NCHW
+        np_img = np.asarray(np_img, np.float32)
+
+        np_norm_img = np_img / 255.
+        t_norm_img = torch.from_numpy(np_norm_img).to(device)
+
+        out_pcm, out_paf, _, _ = net_heat(t_norm_img)
+        an123 = net_angle(out_paf)
+        np_an123 = an123.detach().cpu().numpy()
+        np_an123 = np_an123[0] * 90.  # batch size 1
+        np_an123 = np.clip(np_an123, a_min=0, a_max=200)
+        result_line = [filename, np_an123[0], np_an123[1], np_an123[2]]
+        result_name_an123.append(result_line)
+        print(filename)
+
+    with open(path.join(f.data_root, "submit_result.csv"), "w+") as result_csv_file:
+        writer = csv.writer(result_csv_file)
+        [writer.writerow(l) for l in result_name_an123]
+
+
 if __name__ == '__main__':
     plot_submit_test_set()
+    eval_submit_testset()

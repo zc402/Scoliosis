@@ -103,7 +103,7 @@ class CobbAngleModel(nn.Module):
 
         super(CobbAngleModel, self).__init__()
 
-        cfgs = [256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M', 512, 512]
+        cfgs = [256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 512]
 
         def make_conv_layers(in_channels, out_channels, kernels=3, padding=1, ReLU=True):
             conv2d = nn.Conv2d(in_channels, out_channels, kernel_size=kernels, padding=padding)
@@ -127,7 +127,7 @@ class CobbAngleModel(nn.Module):
         # Dense layers
         self.classifier = nn.Sequential(
             nn.Linear(512*4*4, 2048),
-            nn.BatchNorm1d(2048),
+            nn.Dropout(),
             nn.ReLU(True),
             nn.Linear(2048, 2048),
             nn.ReLU(True),

@@ -47,7 +47,7 @@ if __name__ == "__main__":
     step = 0
     device = torch.device("cuda")
     for train_imgs, train_labels, train_angles in train_data_loader:
-        train_imgs, train_labels = aug.augment_batch_img(train_imgs, train_labels)
+        train_imgs, train_labels = aug.augment_batch_img(train_imgs, train_labels) # TODO: rotate or not??
 
         criterion = nn.MSELoss()
         # To numpy, NCHW. normalize to [0, 1]
@@ -76,6 +76,12 @@ if __name__ == "__main__":
             print("Stop on plateau")
             break
 
+        # Check train acc
+
+        norm_predict_angles = predict_angles.detach().cpu().numpy()
+        angle_recover = norm_predict_angles * 90.
+        print(np.mean(np.abs(np_train_angles - angle_recover)))
+
         # Save
         if step % 100 == 0:
             torch.save(net_angle.state_dict(), save_path_angle)
@@ -95,7 +101,7 @@ if __name__ == "__main__":
                 norm_test_angles = np_test_angles / 90.
                 t_test_angles = torch.from_numpy(norm_test_angles).to(device)
 
-                norm_predict_angles = net_angle(t_test_imgs)
+                norm_predict_angles = net_angle(out_paf)
                 norm_predict_angles = norm_predict_angles.detach().cpu().numpy()
                 predict_angles = norm_predict_angles * 90.
 
