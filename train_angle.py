@@ -15,30 +15,47 @@ import spine_augmentation as aug
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", default=5, type=int, required=False, help="batch size")
+    parser.add_argument("--trainval", action='store_true', default=False)
     args = parser.parse_args()
     batch_size = args.s
-    train_data_loader = load_utils.train_loader(batch_size, load_angle=True)
+    if args.trainval:  # Final training, use train and val set
+        train_data_loader = load_utils.train_loader(batch_size, load_angle=True, use_trainval=True)
+        print("--- Using [train, val] set as training set!")
+    else:
+        train_data_loader = load_utils.train_loader(batch_size, load_angle=True)
     test_data_loader = load_utils.test_loader(batch_size, load_angle=True)
 
     net_heat = spine_model.SpineModelPAF()
     net_heat.cuda()
     net_heat.eval()
-
-    save_path_heat = f.checkpoint_heat_path
-    if path.exists(save_path_heat):
-        net_heat.load_state_dict(torch.load(save_path_heat))
-    else:
-        raise FileNotFoundError("Heatmap model checkpoint not found.")
-
     net_angle = spine_model.CobbAngleModel()
     net_angle.cuda()
 
-    save_path_angle = f.checkpoint_angle_path
-    if path.exists(save_path_angle):
-        net_angle.load_state_dict(torch.load(save_path_angle))
-        print("Load angle net checkpoint")
+    # Load heatmap network checkpoint
+    save_path_heat = f.checkpoint_heat_trainval_path if args.trainval else f.checkpoint_heat_path
+    if path.exists(save_path_heat):
+        net_heat.load_state_dict(torch.load(save_path_heat))
     else:
-        print("Train angle net from scratch")
+        raise FileNotFoundError("Heatmap model checkpoint not found: {}.".format(save_path_heat))
+
+    # Load angle network checkpoint
+    if not args.trainval:
+        save_path_angle = f.checkpoint_angle_path
+        if path.exists(save_path_angle):
+            net_angle.load_state_dict(torch.load(save_path_angle))
+            print("Load angle net checkpoint")
+        else:
+            print("Train angle net from scratch")
+    else: # Trainval
+        save_path_angle = f.checkpoint_angle_trainval_path
+        if path.exists(save_path_angle):
+            net_angle.load_state_dict(torch.load(save_path_angle))
+            print("Load model weights from [trainval] checkpoint")
+        elif path.exists(f.checkpoint_angle_path):  # Transfer learning
+            net_angle.load_state_dict(torch.load(f.checkpoint_angle_path))
+            print("No [trainval] checkpoint but [train] checkpoint exists. Load [train]")
+        else:  # From scratch
+            print("No [trainval] or [train] checkpoint, training [train, val] from scratch")
 
     optimizer = optim.Adam(net_angle.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
@@ -53,8 +70,8 @@ if __name__ == "__main__":
         # To numpy, NCHW. normalize to [0, 1]
         norm_train_imgs = np.asarray(train_imgs, np.float32)[:, np.newaxis, :, :] / 255.0
         t_train_imgs = torch.from_numpy(norm_train_imgs).to(device)
-
-        out_pcm, out_paf, _, _= net_heat(t_train_imgs)
+        with torch.no_grad():
+            out_pcm, out_paf, _, _= net_heat(t_train_imgs)
 
         np_train_angles = np.array(train_angles, dtype=np.float32)
         norm_train_angles = np_train_angles / 90.
@@ -71,7 +88,7 @@ if __name__ == "__main__":
         loss_value = loss.item()
         scheduler.step(loss_value)
         lr = optimizer.param_groups[0]['lr']
-        print("Loss: %f, LR: %f" % (loss_value, lr))
+        print("Step: %d, Loss: %f, LR: %f" % (step, loss_value, lr))
         if lr < 10e-5:
             print("Stop on plateau")
             break
@@ -82,7 +99,7 @@ if __name__ == "__main__":
         angle_recover = norm_predict_angles * 90.
         print(np.mean(np.abs(np_train_angles - angle_recover)))
 
-        # Save
+        # Save #FIXME: trainval
         if step % 100 == 0:
             torch.save(net_angle.state_dict(), save_path_angle)
             print("Angle model saved")

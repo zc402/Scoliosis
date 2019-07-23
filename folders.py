@@ -48,7 +48,8 @@ submit_test_plot_out = path.join(data_root, "evaluation-submit_test")
 # Angle csv
 train_angle = path.join(data_spine, "labels", "training")
 val_angle = path.join(data_spine, "labels", "test")
+trainval_angle = path.join(data_root, "trainval-labels")
 
 # Submit
 resize_trainval_img = path.join(resized_data, "image", "train-val")
-resize_trainval_label = path.join(data_spine, "labels", "train-val")
+resize_trainval_label = path.join(resized_data, "labels", "train-val")

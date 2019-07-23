@@ -154,7 +154,7 @@ if __name__ == "__main__":
         loss_value = loss.item()
         scheduler.step(loss_value)
         lr = optimizer.param_groups[0]['lr']
-        print("Loss: %f, LR: %f" % (loss_value, lr))
+        print("Step: %d, Loss: %f, LR: %f" % (step, loss_value, lr))
 
         # Save
         if step % 100 == 0:

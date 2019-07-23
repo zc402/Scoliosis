@@ -41,7 +41,7 @@ def load_imgs_labels(batch_size, label_folder, img_folder, rand, angle_folder=No
                 # Name to be matched with angles
 
                 batch_basename = [path.basename(fi).replace(".npy", "") for fi in batch_label_path]
-                batch_basename = [n.replace("_flip", "") for n in batch_basename]
+                batch_basename = [n.replace("_flip.jpg", ".jpg") for n in batch_basename]
 
                 batch_angles = [angles[filenames.index(fi)] for fi in batch_basename]
                 batch_angles = [list(map(float, a)) for a in batch_angles]
@@ -61,9 +61,11 @@ def train_loader(batch_size, load_angle=False, use_trainval=False):
     else:  # Use train set, val set remains for validation
         img_folder = f.resize_train_img
         label_folder = f.resize_train_label
+
     if load_angle:
+        angle_folder = f.trainval_angle if use_trainval else f.train_angle
         loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True,
-                                  angle_folder=f.train_angle)
+                                  angle_folder=angle_folder)
     else:
         loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True)
     for img_la in loader:

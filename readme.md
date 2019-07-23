@@ -14,4 +14,4 @@
 - `python3 resize_images.py` to handle "train, val, test" set images
 - `python3 train.py --trainval` to train with train and val set
 
-TODO: merge train and val csv annotation
+Merge train and val csv annotation, put into `dataroot/trainval-labels` folder
