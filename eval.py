@@ -7,6 +7,7 @@ import glob
 import folders as f
 import cv2
 import torch.nn.functional as F
+import argparse
 
 def plot_validation_set():
     # Validation Set
@@ -23,12 +24,19 @@ def plot_test_images(img_folder, out_folder):
     net = spine_model.SpineModelPAF()  # Spine Network Model
     net.eval()
     net.cuda()
-    save_path = path.join(f.checkpoint, "checkpoint.pth")
+
+    if args.trainval:
+        print("Load [train, val] checkpoint")
+        save_path = f.checkpoint_heat_trainval_path
+    else:
+        print("Load [train] checkpoint")
+        save_path = f.checkpoint_heat_path
+
     if path.exists(save_path):
         net.load_state_dict(torch.load(save_path))
-        print("Model loaded")
+        print("Heat Model loaded")
     else:
-        print("No checkpoint.pth at %s", save_path)
+        raise FileNotFoundError("No checkpoint.pth at %s", save_path)
 
     for img_path in test_imgs:
         img_gray = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)  # HW
@@ -86,8 +94,11 @@ def eval_submit_testset():
     net_heat.eval()
     net_angle.cuda()
     net_angle.eval()
-    net_heat.load_state_dict(torch.load(f.checkpoint_heat_path))
-    net_angle.load_state_dict(torch.load(f.checkpoint_angle_path))
+
+    save_path = f.checkpoint_heat_trainval_path if args.trainval else f.checkpoint_heat_path
+    net_heat.load_state_dict(torch.load(save_path))
+    save_path_a = f.checkpoint_angle_trainval_path if args.trainval else f.checkpoint_angle_path
+    net_angle.load_state_dict(torch.load(save_path_a))
 
     device = torch.device("cuda")  # Input device
 
@@ -116,5 +127,12 @@ def eval_submit_testset():
 
 
 if __name__ == '__main__':
-    plot_submit_test_set()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--trainval", action='store_true', default=False)
+    parser.add_argument("--plot", action='store_true', default=False)
+    args = parser.parse_args()
+
+    if args.plot: plot_submit_test_set()
+
     eval_submit_testset()
+

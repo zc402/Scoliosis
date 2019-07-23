@@ -99,7 +99,7 @@ if __name__ == "__main__":
         angle_recover = norm_predict_angles * 90.
         print(np.mean(np.abs(np_train_angles - angle_recover)))
 
-        # Save #FIXME: trainval
+        # Save
         if step % 100 == 0:
             torch.save(net_angle.state_dict(), save_path_angle)
             print("Angle model saved")
