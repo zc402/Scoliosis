@@ -7,3 +7,4 @@ resized_data
 results
 checkpoint.pth
 data_spine.zip
+.ipynb*
