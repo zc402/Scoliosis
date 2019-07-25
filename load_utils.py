@@ -81,7 +81,7 @@ def test_loader(batch_size, load_angle=False):
     img_folder = f.resize_test_img
     label_folder = f.resize_test_label
     if load_angle:
-        loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=True,
+        loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=False,
                                   angle_folder=f.val_angle)
     else:
         loader = load_imgs_labels(batch_size, label_folder, img_folder, rand=False)

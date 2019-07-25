@@ -121,7 +121,7 @@ def eval_submit_testset():
         result_name_an123.append(result_line)
         print(filename)
 
-    with open(path.join(f.data_root, "submit_result.csv"), "w+") as result_csv_file:
+    with open(path.join(f.data_root, "submit_result.csv"), "w+", newline='') as result_csv_file:
         writer = csv.writer(result_csv_file)
         [writer.writerow(l) for l in result_name_an123]
 
