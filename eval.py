@@ -44,7 +44,8 @@ def plot_test_images(img_folder, out_folder):
         img = np.asarray(img, np.float32)
         img_01 = img / 255.0
         test_imgs_tensor = torch.from_numpy(img_01).to(device)
-        out_pcm, out_paf, _, _ = net(test_imgs_tensor)  # NCHW
+        with torch.no_grad():
+            out_pcm, out_paf, _, _ = net(test_imgs_tensor)  # NCHW
 
         # Plot and save image
         heats = torch.cat([out_pcm, out_paf], dim=1)
@@ -134,5 +135,5 @@ if __name__ == '__main__':
 
     if args.plot: plot_submit_test_set()
 
-    eval_submit_testset()
+    # eval_submit_testset()
 
