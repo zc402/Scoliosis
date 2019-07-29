@@ -5,7 +5,7 @@ import numpy as np
 import load_utils
 import spine_augmentation as aug
 import confidence_map as cmap
-import spine_model
+import ladder_shufflenet
 import torch.optim as optim
 import torch.nn as nn
 import torch
@@ -20,7 +20,7 @@ import os
 import argparse
 
 def save_grid_images(img, gau, name):
-    gau = F.interpolate(gau, size=(img.size(2), img.size(3)), mode="bilinear")
+    # gau = F.interpolate(gau, size=(img.size(2), img.size(3)), mode="bilinear")
     gau_img = torch.cat((gau, img), dim=0)
     gau_img = torchvision.utils.make_grid(gau_img, nrow=batch_size)
 
@@ -28,7 +28,7 @@ def save_grid_images(img, gau, name):
     npimg = np.clip(npimg, 0., 1.)
     npimg = np.transpose(npimg, (1, 2, 0))
     npimg = (npimg*255.).astype(np.uint8)
-    npimg = cv2.resize(npimg, None, fx=4, fy=4)  # Gaussian
+    # npimg = cv2.resize(npimg, None, fx=4, fy=4)  # Gaussian
     cv2.imwrite(path.join(f.train_results, "%s.jpg" % name), npimg)
 
 def label_normalize_flatten(batch_labels, batch_imgs):
@@ -72,7 +72,7 @@ def plot_norm_pts(batch_imgs, batch_norm_pts, name):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train network.')
-    parser.add_argument('-s', type=int, default=5, help='batch size')
+    parser.add_argument('-s', type=int, default=4, help='batch size')
     parser.add_argument("--trainval", action='store_true', default=False)
     args = parser.parse_args()
 
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     test_data_loader = load_utils.test_loader(batch_size)
     device = torch.device("cuda")
 
-    net = spine_model.SpineModelPAF()
+    net = ladder_shufflenet.LadderModel()
     # Load checkpoint
     # If in trainval mode, no "trainval" checkpoint found,
     # and the checkpoint for "train" mode exists,
@@ -114,22 +114,22 @@ if __name__ == "__main__":
         else:
             print("No [trainval] or [train] checkpoint, training [train, val] from scratch")
 
-    net.cuda()
+    net.cuda().train()
 
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=6000, verbose=True)  # Be patient for n steps
+        optimizer, patience=5000, verbose=True)  # Be patient for n steps
 
     step = 0
     for train_imgs, train_labels in train_data_loader:
         train_imgs, train_labels = aug.augment_batch_img(train_imgs, train_labels)
         cm = cmap.ConfidenceMap()
         # Classify labels as (top left, top right, bottom left, bottom right, left center, right center)
-        heat_scale = 4
-        NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
+        heat_scale = 1
+        # NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
         NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
         NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, heat_scale)
-        train_gaussian_imgs = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_lines), axis=1)
+        # train_gaussian_imgs = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_lines), axis=1)
 
         optimizer.zero_grad()
         criterion = nn.MSELoss()
@@ -138,16 +138,18 @@ if __name__ == "__main__":
         # Normalize train labels to [0, 1] to predict them directly
         norm_labels = label_normalize_flatten(train_labels, train_imgs)
         # To tensor
-        train_imgs = torch.from_numpy(train_imgs).to(device)
-        # To numpy -> to tensor
-        train_gaussian_imgs = torch.from_numpy(np.asarray(train_gaussian_imgs)).to(device)
-        out_pcm, out_paf, loss1_pcm_img, loss2_paf_img = net(train_imgs)
+        train_imgs = torch.from_numpy(np.asarray(train_imgs)).cuda()
+        tensor_gt_pcm = torch.from_numpy(np.asarray(NCHW_center_gau)).cuda()
+        tensor_gt_paf = torch.from_numpy(np.asarray(NCHW_lines)).cuda()
+
+        out_pcm, out_paf = net(train_imgs)
+
         # Heatmap loss
-        loss1 = criterion(loss1_pcm_img, train_gaussian_imgs[:, :6, ...])
+        loss1 = criterion(out_pcm, tensor_gt_pcm)
         # point regression loss
         norm_labels = torch.from_numpy(norm_labels).to(device)
-        loss2 = criterion(loss2_paf_img, train_gaussian_imgs[:, 6:, ...])
-        loss = loss1 + (loss2 / 10)  # pcm + paf
+        loss2 = criterion(out_paf, tensor_gt_paf)
+        loss = loss1 + (loss2 / 5)  # pcm + paf
         loss.backward()
         optimizer.step()
         step = step + 1
@@ -157,24 +159,24 @@ if __name__ == "__main__":
         print("Step: %d, Loss: %f, LR: %f" % (step, loss_value, lr))
 
         # Save
-        if step % 100 == 0:
+        if step % 200 == 0:
             torch.save(net.state_dict(), save_path)
             print("Model saved")
 
-        if lr < 10e-5:
+        if lr <= 10e-5:
             print("Stop on plateau")
             break
 
         # Test
-        if step % 100 == 0:
+        if step % 200 == 0:
             net.eval()
+            test_imgs, test_labels = next(test_data_loader)
+            test_imgs = np.asarray(test_imgs, np.float32)[:, np.newaxis, :, :]
+            test_imgs_01 = test_imgs / 255.0
             with torch.no_grad():
-                test_imgs, test_labels = next(test_data_loader)
-                test_imgs = np.asarray(test_imgs, np.float32)[:, np.newaxis, :, :]
-                test_imgs_01 = test_imgs / 255.0
                 test_imgs_tensor = torch.from_numpy(test_imgs_01).to(device)
-                out_pcm, out_paf, _, _ = net(test_imgs_tensor)  # NCHW
+                out_pcm, out_paf = net(test_imgs_tensor)  # NCHW
 
-                save_grid_images(test_imgs_tensor, out_pcm[:, 4:5, ...], str(step))
+                save_grid_images(test_imgs_tensor, out_pcm[:, 0:1, ...], str(step))
                 # plot_norm_pts(test_imgs, test_out_pts, str(step))
             net.train()

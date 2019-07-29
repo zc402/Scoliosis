@@ -1,5 +1,5 @@
 import numpy as np
-import spine_model
+import ladder_shufflenet
 import torch
 import os
 import os.path as path
@@ -21,7 +21,7 @@ def plot_test_images(img_folder, out_folder):
     os.makedirs(out_folder, exist_ok=True)
     test_imgs = glob.glob(path.join(img_folder, '*'))  # Wildcard of test images
     device = torch.device("cuda")  # CUDA
-    net = spine_model.SpineModelPAF()  # Spine Network Model
+    net = ladder_shufflenet.LadderModel()  # Spine Network Model
     net.eval()
     net.cuda()
 
@@ -45,7 +45,7 @@ def plot_test_images(img_folder, out_folder):
         img_01 = img / 255.0
         test_imgs_tensor = torch.from_numpy(img_01).to(device)
         with torch.no_grad():
-            out_pcm, out_paf, _, _ = net(test_imgs_tensor)  # NCHW
+            out_pcm, out_paf = net(test_imgs_tensor)  # NCHW
 
         # Plot and save image
         heats = torch.cat([out_pcm, out_paf], dim=1)
@@ -133,6 +133,7 @@ if __name__ == '__main__':
     parser.add_argument("--plot", action='store_true', default=False)
     args = parser.parse_args()
 
+    plot_validation_set()
     if args.plot: plot_submit_test_set()
 
     # eval_submit_testset()

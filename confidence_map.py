@@ -25,7 +25,7 @@ def gaussian_2d_pts(img, pts):
 """
 
 class ConfidenceMap():
-    def __init__(self, sigma=1.0, thickness=2):
+    def __init__(self, sigma=4.0, thickness=6):
         self.sigma = sigma
         self.thickness = thickness
 
@@ -38,7 +38,7 @@ class ConfidenceMap():
         """
         # Use cuda for big pictures (256:752), use CPU for smaller ones (64: 188)
         # device = torch.device("cuda:0")  # small img: 9.05
-        device = torch.device("cpu")  # small img: 3.35
+        device = torch.device("cuda")  # small img: 3.35
         assert len(hw) == 2  # grayscale image: H,W
         h, w = hw
         i, j = torch.meshgrid([torch.arange(h, dtype=torch.float, device=device), torch.arange(w, dtype=torch.float, device=device)])
@@ -109,7 +109,7 @@ class ConfidenceMap():
         """
         Find two centers: center of left top and left bottom, center of right top and right bottom
         :param batch_labels:
-        :return: l_center r_center [N][17(joint)][xy]
+        :return: l_center r_center [lr][N][17(joint)][xy]
         """
         # [4(tl tr bl br)][N][17(joint)][xy]
         four_corner = np.asarray(self._split_labels_by_corner(batch_labels))
@@ -175,7 +175,7 @@ def main():
     train_imgs, train_labels = next(train_data_loader)
     ts = time.time()
     cm = ConfidenceMap()
-    heat_scale = 4
+    heat_scale = 1
     NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
     NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
     NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, heat_scale)
