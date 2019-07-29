@@ -279,12 +279,19 @@ def isS(mid_p):
             # formula: A - B
             # formula left part A: (p(i,2)-p(num,2))/(p(1,2)-p(num,2))
             # 1,2 in matlab correspond to 0,1 in python (x,y)
-            left_part = (p[i, 1] - p[num-1, 1]) / (p[0, 1] - p[num-1, 1])
+            if (p[0, 1] - p[num-1, 1])!=0:
+                left_part = (p[i, 1] - p[num-1, 1]) / (p[0, 1] - p[num-1, 1])
+            else:
+                left_part = 0
 
             # formula right part B:(p(i,1)-p(num,1))/(p(1,1)-p(num,1))
-            right_part = (p[i, 0] - p[num-1, 0]) / (p[0, 0] - p[num-1,0])
+            if (p[0, 0] - p[num-1,0])!=0:
+                right_part = (p[i, 0] - p[num-1, 0]) / (p[0, 0] - p[num-1,0])
+            else:
+                right_part = 0
 
-            ll[i] = left_part / right_part
+            # formula: result = A - B
+            ll[i] = left_part - right_part
         return ll
 
     # isS
