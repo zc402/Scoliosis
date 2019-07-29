@@ -109,10 +109,10 @@ def parse_cobb_angle_by_annotated_points():
         hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2
         if not cap.isS(hmids):
             counter_notS = counter_notS + 1
-            a2 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind1], np.array([1, 0]))))
-            a3 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind2], np.array([1, 0]))))
-            #a2 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind1], bones[0])))
-            #a3 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind2], bones[-1])))
+            #a2 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind1], np.array([1, 0]))))
+            #a3 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind2], np.array([1, 0]))))
+            a2 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind1], bones[0])))
+            a3 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind2], bones[-1])))
             pred_angles = np.array([a1, a2, a3])
             print(pred_angles - test_angles[0])
             smape = cap.SMAPE(pred_angles, test_angles[0])

@@ -183,11 +183,14 @@ def make_ind1_upper(ind1, ind2, pair_lr_value):
     if left2 > left1:  # ind2 is lower
         pass
     else:  # ind1 is lower
-        temp = left1
-        left1 = left2
-        left2 = temp
+        temp = ind1
+        ind1 = ind2
+        ind2 = temp
     return ind1, ind2
 
+def sort_pairs_by_y(pair_lr_value):
+    # pairs was originally sorted by confidence, reorder them to sort by y value
+    pass
 
 def reduce_redundant_paris(pair_lr_value):
     # Return reduced pair value, mean to replace shape with input.
@@ -242,10 +245,10 @@ def cobb_angles(np_pcm, np_paf, img=None):
     a1 = am[max_ind1, max_ind2]
 
     # If not "isS" (in matlab)
-    a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], np.array([1, 0]))))
-    a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], np.array([1, 0]))))
-    # a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], bones[0])))
-    # a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], bones[-1])))
+    # a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], np.array([1, 0]))))
+    # a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], np.array([1, 0]))))
+    a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], bones[0])))  # Use first bone
+    a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], bones[-1])))
     # print(a1,  a2, a3)
     # print(max_ind1, max_ind2)
     if img is not None:
