@@ -36,17 +36,18 @@ def run_on_submit_test(net_heat):
         np_norm_img = np_img / 255.
         t_norm_img = torch.from_numpy(np_norm_img).cuda()
         with torch.no_grad():
-            out_pcm, out_paf = net_heat(t_norm_img)
+            out_pcm, out_paf, _, _ = net_heat(t_norm_img)
 
         np_pcm = out_pcm.detach().cpu().numpy()
         np_paf = out_paf.detach().cpu().numpy()
 
-        pred_angles, plot_img = cap.cobb_angles(np_pcm[0, 4:6], np_paf[0], np_img_ori)
-
+        cobb_dict = cap.cobb_angles(np_pcm[0, 0:2], np_paf[0], np_img_ori)
+        pred_angles, pairs_img, pairs_lr_value = cobb_dict["angles"], cobb_dict["pairs_img"], cobb_dict["pair_lr_value"]
+        np.save(path.join(f.validation_plot_out, "{}.npy".format(filename)), pairs_lr_value)
         result_line = [filename, float(pred_angles[0]), float(pred_angles[1]), float(pred_angles[2])]
         result_name_an123.append(result_line)
         print(filename)
-        cap.cvsave(plot_img, "{}".format(filename))
+        cap.cvsave(pairs_img, "{}".format(filename))
 
     with open(path.join(f.data_root, "submit_result.csv"), "w+", newline='') as result_csv_file:
         writer = csv.writer(result_csv_file)
@@ -64,17 +65,18 @@ def run_on_validation(net_heat):
         test_imgs_01 = test_imgs_f / 255.0
         test_imgs_tensor = torch.from_numpy(test_imgs_01).cuda()
         with torch.no_grad():
-            out_pcm, out_paf = net_heat(test_imgs_tensor)  # NCHW
+            out_pcm, out_paf, _, _ = net_heat(test_imgs_tensor)  # NCHW
         np_pcm = out_pcm.detach().cpu().numpy()
         np_paf = out_paf.detach().cpu().numpy()
 
-        pred_angles, plot_img = cap.cobb_angles(np_pcm[0, 4:6], np_paf[0], test_imgs[0])
+        cobb_dict = cap.cobb_angles(np_pcm[0, 0:2], np_paf[0], test_imgs[0])
+        pred_angles, pairs_img, pairs_lr_value = cobb_dict["angles"], cobb_dict["pairs_img"], cobb_dict["pair_lr_value"]
         smape = cap.SMAPE(pred_angles, test_angles[0])
         avg_smape.append(smape)
         print(step, smape)
         print(pred_angles - test_angles[0])
-        cap.cvsave(plot_img, "{}".format(step))
-    print(np.mean(avg_smape))
+        cap.cvsave(pairs_img, "{}".format(step))
+    print("SMAPE:", np.mean(avg_smape))
 
 
 def parse_cobb_angle_by_annotated_points():
@@ -93,6 +95,7 @@ def parse_cobb_angle_by_annotated_points():
         l_bcs, r_bcs = cm.ConfidenceMap()._find_LCenter_RCenter(test_labels)
         gt_lc, gt_rc = l_bcs[0], r_bcs[0]
         pair_lr_value = gt_lc, gt_rc
+        pair_lr_value = cap.sort_pairs_by_y(pair_lr_value)
         # From cobb_angle_parse
         # [p_len][xy] vector coordinates. (sorted by bone confidence, not up to bottom)
         bones = cap.bone_vectors(pair_lr_value)
@@ -131,4 +134,5 @@ if __name__ == "__main__":
     os.makedirs(f.validation_plot_out, exist_ok=True)
 
     # run_on_validation(net)
-    parse_cobb_angle_by_annotated_points()
+    run_on_submit_test(net)
+    # parse_cobb_angle_by_annotated_points()

@@ -132,16 +132,16 @@ class InvertedResidualUpsample(nn.Module):
 
 class LadderModel(nn.Module):
 
-    def __init__(self, out_channels=3):
+    def __init__(self, in_channels=1, out_channels=3):
         super(LadderModel, self).__init__()
 
-        self._stage_out_channels = [48, 48, 96, 192, 1024]  # init, e1, e2, e3, e4
+        self._stage_out_channels = [64, 64, 128, 256, 1024]  # init, e1, e2, e3, e4
 
-        self._stage_in_channels_dec = [1024, 192+192, 96+96, 48+48, 48]  # in: d4, d3, d2, d1, final
-        self._stage_out_channels_dec = [192, 96, 48, 48, out_channels]  # out: d4, d3, d2, d1, final
+        self._stage_in_channels_dec = [1024, 256*2, 128*2, 64*2, 64]  # in: d4, d3, d2, d1, final
+        self._stage_out_channels_dec = [256, 128, 64, 64, out_channels]  # out: d4, d3, d2, d1, final
 
         self.initial = nn.Sequential(
-            nn.Conv2d(1, self._stage_out_channels[0], 3, 1, 1, bias=False),
+            nn.Conv2d(in_channels, self._stage_out_channels[0], 3, 1, 1, bias=False),
             nn.BatchNorm2d(self._stage_out_channels[0]),
             nn.ReLU(inplace=True),
         )
@@ -149,7 +149,7 @@ class LadderModel(nn.Module):
         # Encoder
         input_channels = self._stage_out_channels[0]
         stage_names = ['encoder{}'.format(i) for i in [1, 2, 3, 4]]
-        stages_repeats = [8, 16, 8, 8]
+        stages_repeats = [4, 4, 8, 4]
         for name, repeats, output_channels in zip(
                 stage_names, stages_repeats, self._stage_out_channels[1:]):
             seq = [InvertedResidual(input_channels, output_channels, 2)]
@@ -160,7 +160,7 @@ class LadderModel(nn.Module):
 
         # Decoder
         stage_names = ['decoder{}'.format(i) for i in [4, 3, 2, 1]]
-        stages_repeats = [8, 8, 16, 8]
+        stages_repeats = [4, 8, 4, 4]
         for name, repeats, input_channels, output_channels in zip(
                 stage_names, stages_repeats,self._stage_in_channels_dec[:4], self._stage_out_channels_dec[:4]):
             seq = [InvertedResidualUpsample(input_channels, output_channels, 2)]
@@ -196,7 +196,33 @@ class LadderModel(nn.Module):
 
         final = self.final(d1)
 
-        return final[:, 0:2, :, :], final[:, 2:3, :, :]  # pcm, paf
+        return final[:, 0:2, :, :], final[:, 2:3, :, :], final[:, 0:2, :, :], final[:, 2:3, :, :]  # pcm, paf, loss_pcm, loss_paf
+
+
+""" class MultiLadder(nn.Module):
+    def __init__(self):
+        super(MultiLadder, self).__init__()
+        self.stage1 = LadderModel(in_channels=1, out_channels=3)
+        for i in range(2, 5, 1):
+            stage_n = LadderModel(in_channels=4, out_channels=3)
+            setattr(self, 'stage{}'.format(i), stage_n)
+
+    def forward(self, img):
+        x, _, _, = self.stage1(img)
+        loss_list = [x]  # pcm(2), paf(1)
+        for i in range(2, 5, 1):
+            x = torch.cat([img, x], dim=1)
+            stage_n = getattr(self, 'stage{}'.format(i))
+            x, _, _, = stage_n(x)
+            loss_list.append(x)
+
+        # Loss
+        loss_tensor = torch.stack(loss_list, dim=0)
+
+        loss_tensor = torch.mean(loss_tensor, dim=0)
+
+        return x[:, 0:2, :, :], x[:, 2:3, :, :], loss_tensor[:, 0:2, :, :], loss_tensor[:, 2:3, :, :]
+"""
 
 if __name__=="__main__":
     import numpy as np

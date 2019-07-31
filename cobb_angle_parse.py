@@ -3,6 +3,7 @@ import os.path as path
 import cv2
 import folders as f
 import argparse
+import redundant_bones_filter as rbf
 
 def cvshow(img):
     assert len(img.shape)==2
@@ -85,7 +86,7 @@ def coincidence_rate_from_pcm_paf(lcrc_coord, hw, paf):
     return np.array(coins)
 
 
-def pairs_with_highest_confidence(coincidence_rate, confidence_lowerbound=0.4):
+def pairs_with_highest_confidence(coincidence_rate, confidence_lowerbound):
     # Return: 2 lists contains paired points. e.g.[3,4,5] and [3,4,6] means l3->r3, l4->r4, l6->r6
     pair_l, pair_r = [], []
     args_1d = np.argsort(coincidence_rate, axis=None)
@@ -177,10 +178,13 @@ def draw_pairs(lr_values,heat_hw, img):
 
 def make_ind1_upper(ind1, ind2, pair_lr_value):
     # Check if ind1 is upper bone. If not, exchange ind1 and 2
-    assert len(np.array(pair_lr_value).shape)==3
-    left1 = pair_lr_value[0][ind1][1]  #  Relies on leftpoint, y coord
-    left2 = pair_lr_value[0][ind2][1]
-    if left2 > left1:  # ind2 is lower
+    pair_lr_value = np.array(pair_lr_value)
+    assert len(pair_lr_value.shape) == 3
+    hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
+    hmids_y = hmids[:, 1]  # [p]
+    mid1 = hmids_y[ind1]  #  Relies on leftpoint, y coord
+    mid2 = hmids_y[ind2]
+    if mid2 > mid1:  # ind2 is lower
         pass
     else:  # ind1 is lower
         temp = ind1
@@ -190,7 +194,13 @@ def make_ind1_upper(ind1, ind2, pair_lr_value):
 
 def sort_pairs_by_y(pair_lr_value):
     # pairs was originally sorted by confidence, reorder them to sort by y value
-    pass
+    pair_lr_value = np.array(pair_lr_value)
+    assert len(pair_lr_value.shape) == 3
+    hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
+    hmids_y = hmids[:, 1]  # [p]
+    order_y = np.argsort(hmids_y, axis=None)  # Index of confidence array, shows if array was sorted by y.
+    pair_lr_value = pair_lr_value[:, order_y, :]
+    return pair_lr_value
 
 def reduce_redundant_paris(pair_lr_value):
     # Return reduced pair value, mean to replace shape with input.
@@ -216,9 +226,24 @@ def reduce_redundant_paris(pair_lr_value):
     assert len(reduced_pair_lr_value.shape) == 3  # e.g. (2, 15, 2)
     return reduced_pair_lr_value
 
+def max_angle_indices(bones, pair_lr_value):
+    # 2 indices which compose the largest angle. ind1 >= ind2
+    assert len(bones.shape) == 2, "expect [b][xy]"
+    # [len_b][len_b] angle matrix
+    am = angle_matrix(bones)
+    sort_indices = np.unravel_index(np.argsort(am, axis=None), am.shape)
+    # Two indices that composed the largest angle
+    max_ind1, max_ind2 = sort_indices[0][-1], sort_indices[1][-1]
+    max_angle_value = am[max_ind1, max_ind2]
+
+    # Find out which one is upper bone
+    max_ind1, max_ind2 = make_ind1_upper(max_ind1, max_ind2, pair_lr_value)
+    return max_ind1, max_ind2, max_angle_value
+
 
 def cobb_angles(np_pcm, np_paf, img=None):
     # Return np array of [a1, a2, a3]
+    paf_confidence_lowerbound = 0.3
     assert len(np_pcm.shape) == 3, "expected shape: (c,h,w)"
     assert np_pcm.shape[0] == 2, "expect 2 channels at dim 0 for l and r"
     assert len(np_paf.shape) == 3, "expected shape: (c,h,w)"
@@ -229,34 +254,38 @@ def cobb_angles(np_pcm, np_paf, img=None):
     # [p1_len][p2_len] coincidence rate of a point to another point
     coins = coincidence_rate_from_pcm_paf(lcrc_coords, heat_hw, np_paf[0])
     # [lr][p_len] pairs of points, types are index values in lcrc_coords. equal length.
-    pair_lr = pairs_with_highest_confidence(coins)
+    pair_lr = pairs_with_highest_confidence(coins, confidence_lowerbound=paf_confidence_lowerbound)
     # [lr][p_len][xy], coordinate values. (sorted by bone confidence, not up to bottom)
     pair_lr_value = pair_args_to_value(pair_lr, lcrc_coords)
-    pair_lr_value = reduce_redundant_paris(pair_lr_value)
+    # Sort pairs by y
+    pair_lr_value = sort_pairs_by_y(pair_lr_value)
+    # Use sigma of x, interval, length to delete wrong pairs
+    rbf_dict = rbf.filter(pair_lr_value)
+    pair_lr_value = rbf_dict["pair_lr_value"]
+    # pair_lr_value = reduce_redundant_paris(pair_lr_value)
     # [p_len][xy] vector coordinates. (sorted by bone confidence, not up to bottom)
     bones = bone_vectors(pair_lr_value)
-    # [len_b][len_b] angle matrix
-    am = angle_matrix(bones)
-    sort_indices = np.unravel_index(np.argsort(am, axis=None), am.shape)
-    # Two indices that composed the largest angle
-    max_ind1, max_ind2 = sort_indices[0][-1], sort_indices[1][-1]
-    # Find out which one is upper bone
-    max_ind1, max_ind2 = make_ind1_upper(max_ind1, max_ind2, pair_lr_value)
-    a1 = am[max_ind1, max_ind2]
+    # Index1(higher), index2(lower) of max angle; a1: max angle value
+    max_ind1, max_ind2, a1 = max_angle_indices(bones, pair_lr_value)
 
-    # If not "isS" (in matlab)
+    hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2
+    if not isS(hmids):
     # a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], np.array([1, 0]))))
     # a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], np.array([1, 0]))))
-    a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], bones[0])))  # Use first bone
-    a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], bones[-1])))
+        a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], bones[0])))  # Use first bone
+        a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], bones[-1])))
     # print(a1,  a2, a3)
     # print(max_ind1, max_ind2)
+    else: # isS
+        a2, a3 = handle_isS_branch(pair_lr_value, max_ind1, max_ind2, np_paf.shape[1])
+
+    result_dict = {"angles": np.array([a1, a2, a3]), "pair_lr_value": pair_lr_value}
     if img is not None:
         assert len(img.shape) == 2, "expected shape: (h,w)"
         plot_img = draw_pairs(pair_lr_value, heat_hw, img)
-        return np.array([a1, a2, a3]), plot_img
-    else:
-        return np.array([a1, a2, a3])
+        result_dict["pairs_img"] = plot_img
+
+    return result_dict
 
 def SMAPE(pred_angles, true_angles):
     # symmetric mean absolute percentage error
@@ -304,3 +333,48 @@ def isS(mid_p):
     matrix_product = np.matmul(ll, ll_trans)
     flag = np.sum(matrix_product) != np.sum(np.abs(matrix_product))
     return flag
+
+def handle_isS_branch(pair_lr_value, max_ind1, max_ind2, heat_height):
+    pair_lr_value = np.array(pair_lr_value)
+    assert len(pair_lr_value.shape) == 3
+    hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
+    hmids_y = hmids[:, 1]  # [p]
+    bones = bone_vectors(pair_lr_value)
+    # Max angle in the upper part
+    if (hmids_y[max_ind1] + hmids_y[max_ind2]) < heat_height:
+        print("max angle in upper part")
+        # From 1st to ind1, largest angle
+        if max_ind1==0:
+            print("max_ind1 is already the first bone")
+        top_bones = bones[:max_ind1+1]  # Bones already sorted by y
+        # [len_b][len_b] angle matrix
+        am = angle_matrix(top_bones)
+        # We want comparison of each top bones with just "ind1"
+        # av: angle vector of each top bones with ind1
+        av = am[-1]
+        a2 = np.max(av)
+
+        # From last to ind2, largest angle
+        if max_ind2 == bones.shape[0]-1:
+            print("max_ind2 is already the last bone")
+        end_bones = bones[max_ind2:]
+        am = angle_matrix(end_bones)
+        av = am[0]
+        a3 = np.max(av)
+        return a2, a3
+    else: # Max angle in lower part
+        print("max angle in lower part")
+        if max_ind1==0: print("max_ind2 is already the last")
+        top_bones = bones[:max_ind1+1]  # Bones already sorted by y
+        am = angle_matrix(top_bones)
+        av = am[-1]
+        a2 = np.max(av)
+        arg_order = np.argsort(av)
+        top_max_index = arg_order[0] # pos1_1
+        # First to pos1_1
+        top_bones = bones[:top_max_index+1]
+        am = angle_matrix(top_bones)
+        av = am[-1]
+        a3 = np.max(av)
+        return a2, a3
+

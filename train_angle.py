@@ -3,7 +3,7 @@ Train cobb angle value using heatmaps
 """
 import load_utils
 import argparse
-import spine_model
+import part_affinity_field_net
 import folders as f
 import os.path as path
 import torch
@@ -25,10 +25,10 @@ if __name__ == "__main__":
         train_data_loader = load_utils.train_loader(batch_size, load_angle=True)
     test_data_loader = load_utils.test_loader(batch_size, load_angle=True)
 
-    net_heat = spine_model.SpineModelPAF()
+    net_heat = part_affinity_field_net.SpineModelPAF()
     net_heat.cuda()
     net_heat.eval()
-    net_angle = spine_model.CobbAngleModel()
+    net_angle = part_affinity_field_net.CobbAngleModel()
     net_angle.cuda()
 
     # Load heatmap network checkpoint

@@ -5,6 +5,7 @@ import numpy as np
 import load_utils
 import spine_augmentation as aug
 import confidence_map as cmap
+import part_affinity_field_net
 import ladder_shufflenet
 import torch.optim as optim
 import torch.nn as nn
@@ -13,7 +14,6 @@ import os.path as path
 import torchvision
 import matplotlib.pyplot as plt
 import cv2
-import torch.nn.functional as F
 from PIL import Image
 import folders as f
 import os
@@ -74,10 +74,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train network.')
     parser.add_argument('-s', type=int, default=4, help='batch size')
     parser.add_argument("--trainval", action='store_true', default=False)
+    parser.add_argument("--lr", type=float, default=0.001, help="initial learning rate")
     args = parser.parse_args()
 
     os.makedirs(f.train_results, exist_ok=True)
     os.makedirs(f.checkpoint, exist_ok=True)
+
+    net = ladder_shufflenet.LadderModel()
 
     if not torch.cuda.is_available():
         raise RuntimeError("GPU not available")
@@ -91,7 +94,7 @@ if __name__ == "__main__":
     test_data_loader = load_utils.test_loader(batch_size)
     device = torch.device("cuda")
 
-    net = ladder_shufflenet.LadderModel()
+
     # Load checkpoint
     # If in trainval mode, no "trainval" checkpoint found,
     # and the checkpoint for "train" mode exists,
@@ -116,9 +119,9 @@ if __name__ == "__main__":
 
     net.cuda().train()
 
-    optimizer = optim.Adam(net.parameters(), lr=0.001)
+    optimizer = optim.Adam(net.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=5000, verbose=True)  # Be patient for n steps
+        optimizer, patience=8000, verbose=True)  # Be patient for n steps
 
     step = 0
     for train_imgs, train_labels in train_data_loader:
@@ -142,13 +145,13 @@ if __name__ == "__main__":
         tensor_gt_pcm = torch.from_numpy(np.asarray(NCHW_center_gau)).cuda()
         tensor_gt_paf = torch.from_numpy(np.asarray(NCHW_lines)).cuda()
 
-        out_pcm, out_paf = net(train_imgs)
+        out_pcm, out_paf, loss_pcm, loss_paf = net(train_imgs)
 
         # Heatmap loss
-        loss1 = criterion(out_pcm, tensor_gt_pcm)
+        loss1 = criterion(loss_pcm, tensor_gt_pcm)
         # point regression loss
         norm_labels = torch.from_numpy(norm_labels).to(device)
-        loss2 = criterion(out_paf, tensor_gt_paf)
+        loss2 = criterion(loss_paf, tensor_gt_paf)
         loss = loss1 + (loss2 / 5)  # pcm + paf
         loss.backward()
         optimizer.step()
@@ -163,7 +166,7 @@ if __name__ == "__main__":
             torch.save(net.state_dict(), save_path)
             print("Model saved")
 
-        if lr <= 10e-5:
+        if lr <= 0.00005:
             print("Stop on plateau")
             break
 
@@ -175,7 +178,7 @@ if __name__ == "__main__":
             test_imgs_01 = test_imgs / 255.0
             with torch.no_grad():
                 test_imgs_tensor = torch.from_numpy(test_imgs_01).to(device)
-                out_pcm, out_paf = net(test_imgs_tensor)  # NCHW
+                out_pcm, out_paf, _, _ = net(test_imgs_tensor)  # NCHW
 
                 save_grid_images(test_imgs_tensor, out_pcm[:, 0:1, ...], str(step))
                 # plot_norm_pts(test_imgs, test_out_pts, str(step))

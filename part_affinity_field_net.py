@@ -44,24 +44,30 @@ class SpineModelPAF(nn.Module):
             layers = [conv2d, nn.BatchNorm2d(out_channels), nn.ReLU(inplace=True)]
         else:
             layers = [conv2d]
-        return layers
+        return nn.Sequential(*layers)
 
     def stage1(self, out_channels):
         layers = []
-        [layers.append(l) for l in self.make_conv_layers(128, 128)]
-        [layers.append(l) for l in self.make_conv_layers(128, 128)]
-        [layers.append(l) for l in self.make_conv_layers(128, 128)]
-        [layers.append(l) for l in self.make_conv_layers(128, 512, kernels=1, padding=0)]
-        [layers.append(l) for l in self.make_conv_layers(512, out_channels, kernels=1, padding=0, ReLU=False)]
+        layers.append(self.make_conv_layers(128, 128))
+        layers.append(nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1))
+        layers.append(self.make_conv_layers(64, 64))
+        layers.append(nn.ConvTranspose2d(64, 32, 4, stride=2, padding=1))
+        layers.append(self.make_conv_layers(32, 32))
+        layers.append(self.make_conv_layers(32, 32))
+        layers.append(self.make_conv_layers(32, 32, kernels=1, padding=0))
+        layers.append(self.make_conv_layers(32, out_channels, kernels=1, padding=0, ReLU=False))
         return nn.Sequential(*layers)
 
     def stageN(self, out_channels):
         layers = []
-        [layers.append(l) for l in self.make_conv_layers(128+self.pcm_n+self.paf_n, 128, kernels=7, padding=3)]
-        for _ in range(4):
-            [layers.append(l) for l in self.make_conv_layers(128, 128, kernels=7, padding=3)]
-        [layers.append(l) for l in self.make_conv_layers(128, 128, kernels=1, padding=0)]
-        [layers.append(l) for l in self.make_conv_layers(128, out_channels, kernels=1, padding=0, ReLU=False)]
+        layers.append(self.make_conv_layers(128+self.pcm_n+self.paf_n, 128, kernels=7, padding=3))
+        layers.append(nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1))
+        layers.append(self.make_conv_layers(64, 64, kernels=7, padding=3))
+        layers.append(nn.ConvTranspose2d(64, 32, 4, stride=2, padding=1))
+        layers.append(self.make_conv_layers(32, 32, kernels=7, padding=3))
+        layers.append(self.make_conv_layers(32, 32, kernels=7, padding=3))
+        layers.append(self.make_conv_layers(32, 32, kernels=1, padding=0))
+        layers.append(self.make_conv_layers(32, out_channels, kernels=1, padding=0, ReLU=False))
         return nn.Sequential(*layers)
 
     def forward(self, x):
