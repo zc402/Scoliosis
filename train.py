@@ -80,6 +80,7 @@ if __name__ == "__main__":
     os.makedirs(f.train_results, exist_ok=True)
     os.makedirs(f.checkpoint, exist_ok=True)
 
+    # net = part_affinity_field_net.SpineModelPAF()
     net = ladder_shufflenet.LadderModel()
 
     if not torch.cuda.is_available():

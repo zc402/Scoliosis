@@ -25,7 +25,7 @@ def filter(pair_lr_value):
     hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
     hmids_x = hmids[:, 0]  # [p] Midpoint x
 
-    limit_factor = 3
+    limit_factor = 2
     m = np.mean(hmids_x)
     dev = np.std(hmids_x)
     x_low = m - limit_factor * dev
@@ -43,6 +43,8 @@ def filter(pair_lr_value):
 
     # -----------------------------------------------------
     # Crop by length of bones
+
+
     limit_factor = 3
     bones = pair_lr_value[1] - pair_lr_value[0]  # [p][xy]
     lens = np.linalg.norm(bones, axis=-1)
@@ -68,29 +70,39 @@ def filter(pair_lr_value):
     # Crop by NEAREST Y INTERVAL (must proceed after other standards)
     # Suppose pair_lr_value is sorted by y
     assert pair_lr_value.shape[1] > 4, "not enough bones to sample and to trim first/last one"
-    hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
-    hmids_y = hmids[:, 1]  # [p] Midpoint y
-    intervals = hmids_y[2:-1] - hmids_y[1:-2]  # 1-0, 2-1, 3-2... 19-18
 
-    limit_factor = 6
-    m = np.mean(intervals)
-    dev = np.std(intervals)
+    num_del = -1
+    while num_del != 0:  # do until no more crops
 
-    int_high = m + limit_factor * dev
-    # print("+-{} dev: ".format(limit_factor), int_high)
+        hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
+        hmids_y = hmids[:, 1]  # [p] Midpoint y
+        intervals = hmids_y[2:-1] - hmids_y[1:-2]  # 1-0, 2-1, 3-2... 19-18
 
-    result_dict["int_high"] = int_high
-    # plt.hist(intervals, bins=30)
+        limit_factor = 3
+        m = np.mean(intervals)
+        dev = np.std(intervals)
 
-    first_bone_int = hmids_y[1] - hmids_y[0]
-    last_bone_int = hmids_y[-1] - hmids_y[-2]
-    # print("first/last", first_bone_int, last_bone_int)
-    # delete from pairs
-    if delete_pairs:
-        if first_bone_int > int_high:
-            pair_lr_value = pair_lr_value[:, 1:, :]
-        if last_bone_int > int_high:
-            pair_lr_value = pair_lr_value[:, :-1, :]
+        int_high = m + limit_factor * dev
+        # print("+-{} dev: ".format(limit_factor), int_high)
+
+        result_dict["int_high"] = int_high
+        # plt.hist(intervals, bins=30)
+
+        first_bone_int = hmids_y[1] - hmids_y[0]
+        last_bone_int = hmids_y[-1] - hmids_y[-2]
+        # print("first/last", first_bone_int, last_bone_int)
+        # delete from pairs
+        prev_length = pair_lr_value.shape[1]
+        if delete_pairs:
+            if first_bone_int > int_high:
+                pair_lr_value = pair_lr_value[:, 1:, :]
+            if last_bone_int > int_high:
+                pair_lr_value = pair_lr_value[:, :-1, :]
+
+        current_length = pair_lr_value.shape[1]
+        num_del = prev_length - current_length
+        if num_del < 0:
+            raise ValueError()
 
     # -----------------------------------------
     # If still more than 17, reduce redundant pairs from TOP

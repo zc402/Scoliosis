@@ -271,9 +271,9 @@ def cobb_angles(np_pcm, np_paf, img=None):
     hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2
     if not isS(hmids):
     # a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], np.array([1, 0]))))
-    # a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], np.array([1, 0]))))
+        # a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], np.array([1, 0]))))  # but the last bone is hard to detect, so use horizontal one?
         a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], bones[0])))  # Use first bone
-        a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], bones[-1])))
+        a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], bones[-1])))  # TODO: but the last bone is hard to detect, so use horizontal one?
     # print(a1,  a2, a3)
     # print(max_ind1, max_ind2)
     else: # isS

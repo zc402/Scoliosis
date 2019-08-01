@@ -1,6 +1,7 @@
 import torchvision.models as models
 import torch
 import torch.nn as nn
+from torch.nn.functional import interpolate
 
 class SpineModelPAF(nn.Module):
     def __init__(self):
@@ -71,23 +72,27 @@ class SpineModelPAF(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+
+        def down(x):
+            return nn.functional.interpolate(x, scale_factor=0.25)
         out1 = self.model_0(x)
         out1_1 = self.model1_1(out1)
         out1_2 = self.model1_2(out1)
 
-        out2 = torch.cat([out1_1, out1_2, out1], dim=1)
+
+        out2 = torch.cat([down(out1_1), down(out1_2), out1], dim=1)
         out2_1 = self.model2_1(out2)
         out2_2 = self.model2_2(out2)
 
-        out3 = torch.cat([out2_1, out2_2, out1], dim=1)
+        out3 = torch.cat([down(out2_1), down(out2_2), out1], dim=1)
         out3_1 = self.model3_1(out3)
         out3_2 = self.model3_2(out3)
 
-        out4 = torch.cat([out3_1, out3_2, out1], dim=1)
+        out4 = torch.cat([down(out3_1), down(out3_2), out1], dim=1)
         out4_1 = self.model4_1(out4)
         out4_2 = self.model4_2(out4)
 
-        out5 = torch.cat([out4_1, out4_2, out1], dim=1)
+        out5 = torch.cat([down(out4_1), down(out4_2), out1], dim=1)
         out5_1 = self.model5_1(out5)
         out5_2 = self.model5_2(out5)
 
