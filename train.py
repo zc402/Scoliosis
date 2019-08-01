@@ -80,8 +80,8 @@ if __name__ == "__main__":
     os.makedirs(f.train_results, exist_ok=True)
     os.makedirs(f.checkpoint, exist_ok=True)
 
-    # net = part_affinity_field_net.SpineModelPAF()
-    net = ladder_shufflenet.LadderModel()
+    net = ladder_shufflenet.LadderModelAdd()
+    # net = ladder_shufflenet.LadderModel()
 
     if not torch.cuda.is_available():
         raise RuntimeError("GPU not available")
@@ -130,20 +130,20 @@ if __name__ == "__main__":
         cm = cmap.ConfidenceMap()
         # Classify labels as (top left, top right, bottom left, bottom right, left center, right center)
         heat_scale = 1
-        # NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
+        NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
         NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
         NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, heat_scale)
-        # train_gaussian_imgs = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_lines), axis=1)
+        NCHW_pcm = np.concatenate((NCHW_corner_gau, NCHW_center_gau), axis=1)
 
         optimizer.zero_grad()
         criterion = nn.MSELoss()
         # To numpy, NCHW. normalize to [0, 1]
         train_imgs = np.asarray(train_imgs, np.float32)[:, np.newaxis, :, :] / 255.0
         # Normalize train labels to [0, 1] to predict them directly
-        norm_labels = label_normalize_flatten(train_labels, train_imgs)
+        # norm_labels = label_normalize_flatten(train_labels, train_imgs)
         # To tensor
         train_imgs = torch.from_numpy(np.asarray(train_imgs)).cuda()
-        tensor_gt_pcm = torch.from_numpy(np.asarray(NCHW_center_gau)).cuda()
+        tensor_gt_pcm = torch.from_numpy(np.asarray(NCHW_pcm)).cuda()
         tensor_gt_paf = torch.from_numpy(np.asarray(NCHW_lines)).cuda()
 
         out_pcm, out_paf, loss_pcm, loss_paf = net(train_imgs)
@@ -151,7 +151,7 @@ if __name__ == "__main__":
         # Heatmap loss
         loss1 = criterion(loss_pcm, tensor_gt_pcm)
         # point regression loss
-        norm_labels = torch.from_numpy(norm_labels).to(device)
+        # norm_labels = torch.from_numpy(norm_labels).to(device)
         loss2 = criterion(loss_paf, tensor_gt_paf)
         loss = loss1 + (loss2 / 5)  # pcm + paf
         loss.backward()
@@ -181,6 +181,6 @@ if __name__ == "__main__":
                 test_imgs_tensor = torch.from_numpy(test_imgs_01).to(device)
                 out_pcm, out_paf, _, _ = net(test_imgs_tensor)  # NCHW
 
-                save_grid_images(test_imgs_tensor, out_pcm[:, 0:1, ...], str(step))
+                save_grid_images(test_imgs_tensor, out_pcm[:, 4:5, ...], str(step))
                 # plot_norm_pts(test_imgs, test_out_pts, str(step))
             net.train()

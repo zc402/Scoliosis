@@ -3,10 +3,11 @@ import torch
 import torch.nn as nn
 from torch.nn.functional import interpolate
 
+# Tried downsample and refine, results not good
 class SpineModelPAF(nn.Module):
     def __init__(self):
         super(SpineModelPAF, self).__init__()
-        self.pcm_n = 6
+        self.pcm_n = 2
         self.paf_n = 1
 
         import torchvision.models.vgg as vgg
