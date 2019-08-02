@@ -16,10 +16,10 @@ def cvsave(img, name):
     assert len(img.shape)==2
     cv2.imwrite(path.join(f.validation_plot_out,"{}.jpg".format(name)), img)
 
-def centeroid(heat):
+def centeroid(heat, gaussian_thresh = 0.6):
     # Parse center point of connected components
     # Return [p][xy]
-    ret, heat = cv2.threshold(heat, 0.50, 1., cv2.THRESH_BINARY)
+    ret, heat = cv2.threshold(heat, gaussian_thresh, 1., cv2.THRESH_BINARY)
     heat = np.array(heat * 255., np.uint8)
     # num: point number + 1 background
     num, labels = cv2.connectedComponents(heat)
@@ -243,7 +243,7 @@ def max_angle_indices(bones, pair_lr_value):
 
 def cobb_angles(np_pcm, np_paf, img=None):
     # Return np array of [a1, a2, a3]
-    paf_confidence_lowerbound = 0.3
+    paf_confidence_lowerbound = 0.7
     assert len(np_pcm.shape) == 3, "expected shape: (c,h,w)"
     assert np_pcm.shape[0] == 2, "expect 2 channels at dim 0 for l and r"
     assert len(np_paf.shape) == 3, "expected shape: (c,h,w)"
@@ -260,8 +260,9 @@ def cobb_angles(np_pcm, np_paf, img=None):
     # Sort pairs by y
     pair_lr_value = sort_pairs_by_y(pair_lr_value)
     # Use sigma of x, interval, length to delete wrong pairs
-    rbf_dict = rbf.filter(pair_lr_value)
-    pair_lr_value = rbf_dict["pair_lr_value"]
+    pair_lr_value = rbf.simple_filter(pair_lr_value)
+    #rbf_dict = rbf.filter(pair_lr_value)
+    #pair_lr_value = rbf_dict["pair_lr_value"]
     # pair_lr_value = reduce_redundant_paris(pair_lr_value)
     # [p_len][xy] vector coordinates. (sorted by bone confidence, not up to bottom)
     bones = bone_vectors(pair_lr_value)
@@ -273,7 +274,7 @@ def cobb_angles(np_pcm, np_paf, img=None):
     # a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], np.array([1, 0]))))
         # a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], np.array([1, 0]))))  # but the last bone is hard to detect, so use horizontal one?
         a2 = np.rad2deg(np.arccos(cos_angle(bones[max_ind1], bones[0])))  # Use first bone
-        a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], bones[-1])))  # TODO: but the last bone is hard to detect, so use horizontal one?
+        a3 = np.rad2deg(np.arccos(cos_angle(bones[max_ind2], bones[-1])))  # Note: use last bone on submit test set gains better results
     # print(a1,  a2, a3)
     # print(max_ind1, max_ind2)
     else: # isS
@@ -364,13 +365,13 @@ def handle_isS_branch(pair_lr_value, max_ind1, max_ind2, heat_height):
         return a2, a3
     else: # Max angle in lower part
         print("max angle in lower part")
-        if max_ind1==0: print("max_ind2 is already the last")
+        if max_ind1==0: print("max_ind1 is already the first bone")
         top_bones = bones[:max_ind1+1]  # Bones already sorted by y
         am = angle_matrix(top_bones)
         av = am[-1]
         a2 = np.max(av)
         arg_order = np.argsort(av)
-        top_max_index = arg_order[0] # pos1_1
+        top_max_index = arg_order[-1] # pos1_1
         # First to pos1_1
         top_bones = bones[:top_max_index+1]
         am = angle_matrix(top_bones)

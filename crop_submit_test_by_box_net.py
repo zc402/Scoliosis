@@ -9,6 +9,7 @@ import torch
 import os.path as path
 import folders as f
 import cv2
+import os
 
 class Box():
     def __init__(self):
@@ -61,6 +62,7 @@ class TrimMachine():
         box = self.box_predictor.predict_box(zoom_img_gray)
         _, _, y_min, y_max = box
         y_top = int(h * y_min)
+        # y_top = int(h * (1-y_max)) # keep same crop for top and bottom. top is not accurate anyway..
         y_bottom = int(h * y_max)
         assert y_top < y_bottom
         crop_img = img_gray[y_top: y_bottom, :]
@@ -77,26 +79,29 @@ class TrimMachine():
         zoom_img_gray = cv2.resize(img_gray, dsize=(int(target_w), int(target_h)), interpolation=cv2.INTER_CUBIC)
         box = self.box_predictor.predict_box(zoom_img_gray)
         x_min, x_max, _, _ = box
-        x_left = int(w * x_min)
-        x_right = int(w * x_max)
+        x_left = int(w * x_min - 0.03 * w)
+        x_right = int(w * x_max + 0.03 * w)
         assert x_left < x_right
         crop_img = img_gray[:, x_left: x_right]
         return crop_img
 
 def main():
+    plot = False
+    os.makedirs(f.submit_test_trim_images, exist_ok=True)
     trim_machine = TrimMachine()
-    test_imgs = glob.glob(path.join(f.submit_test_img, '*'))  # Wildcard of test images
+    test_imgs = glob.glob(path.join(f.submit_test_img, '*.jpg'))  # Wildcard of test images
     for img_path in test_imgs:
         img_gray = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)  # HW
-
+        basename = path.basename(img_path)
+        # crop_img = trim_machine.trim_height(img_gray)
         crop_img = trim_machine.trim_width(img_gray)
 
-        crop_img_show = cv2.resize(crop_img, dsize=None, fx=0.1, fy=0.1)
-        img_gray_show = cv2.resize(img_gray, dsize=None, fx=0.1, fy=0.1)
-        cv2.imshow("Ori", img_gray_show)
-        cv2.imshow("Crop", crop_img_show)
-        cv2.waitKey(0)
-        img_gray = crop_img
-
-
+        if plot:
+            crop_img_show = cv2.resize(crop_img, dsize=None, fx=0.1, fy=0.1)
+            img_gray_show = cv2.resize(img_gray, dsize=None, fx=0.1, fy=0.1)
+            cv2.imshow("Ori", img_gray_show)
+            cv2.imshow("Crop", crop_img_show)
+            print(path.basename(img_path))
+            cv2.waitKey(0)
+        cv2.imwrite(path.join(f.submit_test_trim_images, basename), crop_img)
 main()

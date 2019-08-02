@@ -110,3 +110,13 @@ def filter(pair_lr_value):
         pair_lr_value = pair_lr_value[:, -16:, :]
     result_dict["pair_lr_value"] = pair_lr_value
     return result_dict
+
+def simple_filter(pair_lr_value):
+    # delete y < 190
+    hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
+    hmids_y = hmids[:, 1]  # [p] Midpoint y
+    pair_lr_value = _get_filtered_pairs(pair_lr_value, hmids_y, 190, 1120)
+    # Keep index 0 ~ 17
+    if pair_lr_value.shape[1] > 18:
+        pair_lr_value = pair_lr_value[:, :18, :]
+    return pair_lr_value

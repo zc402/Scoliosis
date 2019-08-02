@@ -14,6 +14,8 @@ import cobb_angle_parse as cap
 # Run evaluation on submit test set
 def run_on_submit_test(net_heat):
     import csv
+    import os
+    os.makedirs(f.submit_test_plot_pairs, exist_ok=True)
     result_name_an123 = []  # Parsing results to be wrote
     submit_example = path.join(f.submit_test_img, "sample_submission.csv")
     with open(submit_example, 'r') as example:
@@ -28,8 +30,8 @@ def run_on_submit_test(net_heat):
 
     filename_list = list(zip(*name_an123))[0]
     for filename in filename_list:
-        resize_filename = path.join(f.resize_submit_test_img, filename + ".jpg")
-        np_img_ori = cv2.imread(resize_filename, cv2.IMREAD_GRAYSCALE)
+        resize_filepath = path.join(f.resize_submit_test_img, filename + ".jpg")
+        np_img_ori = cv2.imread(resize_filepath, cv2.IMREAD_GRAYSCALE)
         np_img = [[np_img_ori]]  # NCHW
         np_img = np.asarray(np_img, np.float32)
 
@@ -41,13 +43,14 @@ def run_on_submit_test(net_heat):
         np_pcm = out_pcm.detach().cpu().numpy()
         np_paf = out_paf.detach().cpu().numpy()
 
-        cobb_dict = cap.cobb_angles(np_pcm[0, 0:2], np_paf[0], np_img_ori)
+        cobb_dict = cap.cobb_angles(np_pcm[0, 4:6], np_paf[0], np_img_ori)
         pred_angles, pairs_img, pairs_lr_value = cobb_dict["angles"], cobb_dict["pairs_img"], cobb_dict["pair_lr_value"]
         np.save(path.join(f.validation_plot_out, "{}.npy".format(filename)), pairs_lr_value)
         result_line = [filename, float(pred_angles[0]), float(pred_angles[1]), float(pred_angles[2])]
         result_name_an123.append(result_line)
         print(filename)
-        cap.cvsave(pairs_img, "{}".format(filename))
+        # cap.cvsave(pairs_img, "{}".format(filename))
+        cv2.imwrite(path.join(f.submit_test_plot_pairs, "{}.jpg".format(filename)), pairs_img)
 
     with open(path.join(f.data_root, "submit_result.csv"), "w+", newline='') as result_csv_file:
         writer = csv.writer(result_csv_file)
@@ -89,50 +92,49 @@ def parse_cobb_angle_by_annotated_points():
     counter_notS = 0
     for step in range(128):
         test_imgs, test_labels, test_angles = next(test_data_loader)
-        gt_a1, gt_a2, gt_a3 = test_angles[0]
+        # gt_a1, gt_a2, gt_a3 = test_angles[0]
         # gt center points
         # [lr][N][17(joint)][xy]
         l_bcs, r_bcs = cm.ConfidenceMap()._find_LCenter_RCenter(test_labels)
         gt_lc, gt_rc = l_bcs[0], r_bcs[0]
         pair_lr_value = gt_lc, gt_rc
+
+        # -----------------------------Use angle_parse from here
+        # Sort pairs by y
         pair_lr_value = cap.sort_pairs_by_y(pair_lr_value)
-        # From cobb_angle_parse
+        # Use sigma of x, interval, length to delete wrong pairs
+        # pair_lr_value = rbf.simple_filter(pair_lr_value)
+        # rbf_dict = rbf.filter(pair_lr_value)
+        # pair_lr_value = rbf_dict["pair_lr_value"]
+        # pair_lr_value = reduce_redundant_paris(pair_lr_value)
         # [p_len][xy] vector coordinates. (sorted by bone confidence, not up to bottom)
         bones = cap.bone_vectors(pair_lr_value)
-        # [len_b][len_b] angle matrix
-        am = cap.angle_matrix(bones)
-        sort_indices = np.unravel_index(np.argsort(am, axis=None), am.shape)
-        # Two indices that composed the largest angle
-        max_ind1, max_ind2 = sort_indices[0][-1], sort_indices[1][-1]
-        # Find out which one is upper bone
-        max_ind1, max_ind2 = cap.make_ind1_upper(max_ind1, max_ind2, pair_lr_value)
-        a1 = am[max_ind1, max_ind2]
+        # Index1(higher), index2(lower) of max angle; a1: max angle value
+        max_ind1, max_ind2, a1 = cap.max_angle_indices(bones, pair_lr_value)
 
-        # If not "isS" (in matlab)
         hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2
         if not cap.isS(hmids):
-            counter_notS = counter_notS + 1
-            #a2 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind1], np.array([1, 0]))))
-            #a3 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind2], np.array([1, 0]))))
-            a2 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind1], bones[0])))
-            a3 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind2], bones[-1])))
-            pred_angles = np.array([a1, a2, a3])
-            print(pred_angles - test_angles[0])
-            smape = cap.SMAPE(pred_angles, test_angles[0])
-            avg_smape.append(smape)
-        else:
-            print("isS case (not implemented)")
-            counter_isS = counter_isS + 1
-    print(np.mean(avg_smape))
-    print("number of isS-notS:", counter_isS, counter_notS)
+            a2 = np.rad2deg(np.arccos(cap.cos_angle(bones[max_ind1], bones[0])))  # Use first bone
+            a3 = np.rad2deg(np.arccos(
+                cap.cos_angle(bones[max_ind2], bones[-1])))  # Note: use last bone on submit test set gains better results
+
+        # print(max_ind1, max_ind2)
+        else:  # isS
+            a2, a3 = cap.handle_isS_branch(pair_lr_value, max_ind1, max_ind2, test_imgs[0].shape[0])
+        sub = np.array([a1, a2, a3]) - test_angles[0]
+        print(step)
+        print(sub)
+        print("------------end---------------")
+    # print(np.mean(avg_smape))
+    # print("number of isS-notS:", counter_isS, counter_notS)
 
 
 if __name__ == "__main__":
-    net = ladder_shufflenet.LadderModel()
+    net = ladder_shufflenet.LadderModelAdd()
     net.eval()
     net.cuda()
     os.makedirs(f.validation_plot_out, exist_ok=True)
 
     # run_on_validation(net)
-    run_on_submit_test(net)
-    # parse_cobb_angle_by_annotated_points()
+    # run_on_submit_test(net)
+    parse_cobb_angle_by_annotated_points()

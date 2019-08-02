@@ -99,7 +99,9 @@ if __name__ == "__main__":
 
     # Set (256, 752) to be able to divide by 16
     # Resize, crop submit test images
-    resize_save((384, 1120), f.submit_test_img, None, f.resize_submit_test_img, None)  # Was (320, 928)
+    # resize_save((384, 1120), f.submit_test_img, None, f.resize_submit_test_img, None)  # Was (320, 928)
+    resize_save((384, 1120), f.submit_test_trim_images, None, f.resize_submit_test_img, None)  # Was (320, 928)
+
     # less_head(f.resize_submit_test_img)  # For angle_net
     # crop(f.resize_submit_test_img)  # For angle_net
     # Train-val folder for final training

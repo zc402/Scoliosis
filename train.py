@@ -75,6 +75,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', type=int, default=4, help='batch size')
     parser.add_argument("--trainval", action='store_true', default=False)
     parser.add_argument("--lr", type=float, default=0.001, help="initial learning rate")
+    parser.add_argument("--patience", type=int, default=5000, help="patience for decrease lr on plateau")
     args = parser.parse_args()
 
     os.makedirs(f.train_results, exist_ok=True)
@@ -122,7 +123,7 @@ if __name__ == "__main__":
 
     optimizer = optim.Adam(net.parameters(), lr=args.lr)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=8000, verbose=True)  # Be patient for n steps
+        optimizer, patience=args.patience, verbose=True)  # Be patient for n steps
 
     step = 0
     for train_imgs, train_labels in train_data_loader:

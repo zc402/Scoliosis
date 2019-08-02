@@ -45,7 +45,8 @@ checkpoint_box_trainval_path = path.join(checkpoint, "checkpoint-box-trainval.pt
 
 # Eval
 validation_plot_out = path.join(data_root, "validation_plot")
-submit_test_plot_out = path.join(data_root, "evaluation-submit_test")
+submit_test_plot_out = path.join(data_root, "submit_test_plot")
+submit_test_plot_pairs = path.join(data_root, "submit_test_plot_pairs")
 
 # Angle csv
 train_angle = path.join(data_spine, "labels", "training")
@@ -59,3 +60,4 @@ resize_trainval_label = path.join(resized_data, "labels", "train-val")
 # Box
 train_box_results = path.join(data_root, "train_box_resutls")
 submit_test_box_plot = path.join(data_root, "submit_test_box_plot")
+submit_test_trim_images = path.join(data_root, "submit_test_trim_images")
