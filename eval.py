@@ -138,7 +138,7 @@ if __name__ == '__main__':
     parser.add_argument("--plot", action='store_true', default=False)
     args = parser.parse_args()
 
-    plot_validation_set()
-    # plot_submit_test_set()
-    # eval_submit_testset()
+    # plot_validation_set()
+    plot_submit_test_set()
+    #(deprecated) eval_submit_testset()
 

@@ -24,12 +24,14 @@ def run_on_submit_test(net_heat):
         result_name_an123.append(example_content[0])  # Title line
         name_an123 = example_content[1:]  # Exclude first title line "name, an1, an2, an3"
 
-    # save_path = f.checkpoint_heat_trainval_path  # FIXME: change back to trainval path
-    save_path = f.checkpoint_heat_path
+    save_path = f.checkpoint_heat_trainval_path  # FIXME: change back to trainval path
+    # save_path = f.checkpoint_heat_path
     net_heat.load_state_dict(torch.load(save_path))
 
     filename_list = list(zip(*name_an123))[0]
     for filename in filename_list:
+        #if '88' not in filename:
+        #    continue
         resize_filepath = path.join(f.resize_submit_test_img, filename + ".jpg")
         np_img_ori = cv2.imread(resize_filepath, cv2.IMREAD_GRAYSCALE)
         np_img = [[np_img_ori]]  # NCHW
@@ -72,13 +74,14 @@ def run_on_validation(net_heat):
         np_pcm = out_pcm.detach().cpu().numpy()
         np_paf = out_paf.detach().cpu().numpy()
 
-        cobb_dict = cap.cobb_angles(np_pcm[0, 0:2], np_paf[0], test_imgs[0])
+        cobb_dict = cap.cobb_angles(np_pcm[0, 4:6], np_paf[0], test_imgs[0], submit_test=False)
         pred_angles, pairs_img, pairs_lr_value = cobb_dict["angles"], cobb_dict["pairs_img"], cobb_dict["pair_lr_value"]
         smape = cap.SMAPE(pred_angles, test_angles[0])
         avg_smape.append(smape)
         print(step, smape)
         print(pred_angles - test_angles[0])
         cap.cvsave(pairs_img, "{}".format(step))
+        print("end-----------------------------")
     print("SMAPE:", np.mean(avg_smape))
 
 
@@ -136,5 +139,5 @@ if __name__ == "__main__":
     os.makedirs(f.validation_plot_out, exist_ok=True)
 
     # run_on_validation(net)
-    # run_on_submit_test(net)
-    parse_cobb_angle_by_annotated_points()
+    run_on_submit_test(net)
+    # parse_cobb_angle_by_annotated_points()

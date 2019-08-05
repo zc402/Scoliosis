@@ -166,6 +166,18 @@ class ConfidenceMap():
         paf_imgs = np.asarray(paf_imgs)[:,np.newaxis]  # NCHW
         return paf_imgs
 
+    def batch_gaussian_first_lrpt(self, imgs, batch_labels):
+        # [4(tl tr bl br)][batch][17(joint)][xy]
+        imgs = np.asarray(imgs)
+        assert len(imgs.shape) == 3, "(N, h, w)"
+        four_corner = np.asarray(self._split_labels_by_corner(batch_labels))
+        first_lrpt = four_corner[0:2, :, 0, :]  # [tl tr][batch][xy]
+        first_lrpt = np.transpose(first_lrpt, [1, 0, 2])  # [batch][tl tr][xy]
+        gau = np.asarray(self._batch_gaussian(imgs.shape[1:3], first_lrpt))
+        gau = gau[:, np.newaxis, :, :]
+        return gau
+
+
 
 def main():
     import load_utils
@@ -179,7 +191,8 @@ def main():
     NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
     NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
     NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, heat_scale)
-    NCHW_gaussian = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_lines), axis=1)
+    NCHW_first_lrpt = cm.batch_gaussian_first_lrpt(train_imgs, train_labels)
+    NCHW_gaussian = np.concatenate((NCHW_lines, NCHW_first_lrpt), axis=1)#NCHW_corner_gau, NCHW_center_gau, NCHW_lines, NCHW_first_lrpt), axis=1)
     te = time.time()
     print("Duration for gaussians: %f" % (te-ts))  # Time duration for generating gaussians
     for n in range(NCHW_gaussian.shape[0]):

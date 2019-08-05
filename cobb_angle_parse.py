@@ -16,7 +16,7 @@ def cvsave(img, name):
     assert len(img.shape)==2
     cv2.imwrite(path.join(f.validation_plot_out,"{}.jpg".format(name)), img)
 
-def centeroid(heat, gaussian_thresh = 0.6):
+def centeroid(heat, gaussian_thresh = 0.5):
     # Parse center point of connected components
     # Return [p][xy]
     ret, heat = cv2.threshold(heat, gaussian_thresh, 1., cv2.THRESH_BINARY)
@@ -202,29 +202,6 @@ def sort_pairs_by_y(pair_lr_value):
     pair_lr_value = pair_lr_value[:, order_y, :]
     return pair_lr_value
 
-def reduce_redundant_paris(pair_lr_value):
-    # Return reduced pair value, mean to replace shape with input.
-    pair_lr_value = np.array(pair_lr_value)
-    assert len(pair_lr_value.shape) == 3
-    to_be_del = []  # indices which will be deleted (indices in hmids)
-    hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
-    hmids_y = hmids[:, 1]  # [p]
-    order = np.argsort(hmids_y)  # Up to Down
-    order = order.tolist()
-    # Delete redundant pairs. Expected 17 pairs in total, or below.
-    if len(order) > 14:
-        to_be_del.append(order.pop(0))  # Delete first and last one
-        to_be_del.append(order.pop(-1))
-    while len(order) > 15:
-        to_be_del.append(order.pop(0))  # Delete from top
-
-    reduced_pair_lr_value = []
-    for i in range(pair_lr_value.shape[1]):
-        if i not in to_be_del:
-            reduced_pair_lr_value.append(pair_lr_value[:, i, :])  # dim1 is gone
-    reduced_pair_lr_value = np.stack(reduced_pair_lr_value, axis=1)  # stack back to dim 1
-    assert len(reduced_pair_lr_value.shape) == 3  # e.g. (2, 15, 2)
-    return reduced_pair_lr_value
 
 def max_angle_indices(bones, pair_lr_value):
     # 2 indices which compose the largest angle. ind1 >= ind2
@@ -241,7 +218,7 @@ def max_angle_indices(bones, pair_lr_value):
     return max_ind1, max_ind2, max_angle_value
 
 
-def cobb_angles(np_pcm, np_paf, img=None):
+def cobb_angles(np_pcm, np_paf, img=None, submit_test=True):
     # Return np array of [a1, a2, a3]
     paf_confidence_lowerbound = 0.7
     assert len(np_pcm.shape) == 3, "expected shape: (c,h,w)"
@@ -259,11 +236,11 @@ def cobb_angles(np_pcm, np_paf, img=None):
     pair_lr_value = pair_args_to_value(pair_lr, lcrc_coords)
     # Sort pairs by y
     pair_lr_value = sort_pairs_by_y(pair_lr_value)
-    # Use sigma of x, interval, length to delete wrong pairs
-    pair_lr_value = rbf.simple_filter(pair_lr_value)
+    if submit_test:
+        # Use sigma of x, interval, length to delete wrong pairs
+        pair_lr_value = rbf.simple_filter(pair_lr_value)
     #rbf_dict = rbf.filter(pair_lr_value)
     #pair_lr_value = rbf_dict["pair_lr_value"]
-    # pair_lr_value = reduce_redundant_paris(pair_lr_value)
     # [p_len][xy] vector coordinates. (sorted by bone confidence, not up to bottom)
     bones = bone_vectors(pair_lr_value)
     # Index1(higher), index2(lower) of max angle; a1: max angle value

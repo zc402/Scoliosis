@@ -22,7 +22,7 @@ class Box():
         net.classifier = classifier
         net.eval().cuda()
 
-        save_path = f.checkpoint_box_path
+        save_path = f.checkpoint_box_trainval_path
         if path.exists(save_path):
             net.load_state_dict(torch.load(save_path))
             print("Model loaded")
@@ -51,6 +51,7 @@ class TrimMachine():
         self.box_predictor = Box()
 
     def trim_height(self, img_gray):
+        # raise NotImplementedError("cobb angle parse will use image height, can't change it now.")
         assert len(img_gray.shape) == 2, "h, w"
         hw = img_gray.shape
         h, w = float(hw[0]), float(hw[1])
@@ -61,15 +62,19 @@ class TrimMachine():
         zoom_img_gray = cv2.resize(img_gray, dsize=(int(target_w), int(target_h)), interpolation=cv2.INTER_CUBIC)
         box = self.box_predictor.predict_box(zoom_img_gray)
         _, _, y_min, y_max = box
+        if y_max < 0.7:
+            y_max = 0.7
         y_top = int(h * y_min)
-        # y_top = int(h * (1-y_max)) # keep same crop for top and bottom. top is not accurate anyway..
-        y_bottom = int(h * y_max)
+        y_bottom = int(h * y_max + 0.05 * h)
         assert y_top < y_bottom
-        crop_img = img_gray[y_top: y_bottom, :]
-        return crop_img
+        # use zero to fill height
+        img_gray[:y_top, :] = 0
+        img_gray[y_bottom:, :] = 0
+        return img_gray
 
     def trim_width(self, img_gray):
         assert len(img_gray.shape) == 2, "h, w"
+
         hw = img_gray.shape
         h, w = float(hw[0]), float(hw[1])
         target_w = 256.
@@ -79,11 +84,37 @@ class TrimMachine():
         zoom_img_gray = cv2.resize(img_gray, dsize=(int(target_w), int(target_h)), interpolation=cv2.INTER_CUBIC)
         box = self.box_predictor.predict_box(zoom_img_gray)
         x_min, x_max, _, _ = box
-        x_left = int(w * x_min - 0.03 * w)
-        x_right = int(w * x_max + 0.03 * w)
+        x_left = int(w * x_min - 0.02 * h)  # Use h, because w becomes wider if original image is wider.
+        x_right = int(w * x_max + 0.02 * h)
         assert x_left < x_right
         crop_img = img_gray[:, x_left: x_right]
         return crop_img
+
+    def trim_width_height(self, img_gray):
+
+        assert len(img_gray.shape) == 2, "h, w"
+        hw = img_gray.shape
+        h, w = float(hw[0]), float(hw[1])
+        target_w = 256.
+        zoom_rate = target_w / w
+        target_h = h * zoom_rate
+
+        zoom_img_gray = cv2.resize(img_gray, dsize=(int(target_w), int(target_h)), interpolation=cv2.INTER_CUBIC)
+        box = self.box_predictor.predict_box(zoom_img_gray)
+        x_min, x_max, y_min, y_max = box
+        x_left = int(w * x_min - 0.03 * w)
+        x_right = int(w * x_max + 0.03 * w)
+        assert x_left < x_right
+        img_gray = img_gray[:, x_left: x_right]
+
+        y_top = int(h * y_min)
+        y_bottom = int(h * y_max + 0.05 * h)
+        assert y_top < y_bottom
+        # use zero to fill height
+        img_gray[:y_top, :] = 0
+        img_gray[y_bottom:, :] = 0
+        return img_gray
+
 
 def main():
     plot = False
@@ -93,15 +124,20 @@ def main():
     for img_path in test_imgs:
         img_gray = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)  # HW
         basename = path.basename(img_path)
-        # crop_img = trim_machine.trim_height(img_gray)
+        # Crop width, then crop height might be better, because
+        # width crop is easier, and a trimmed width gives more budget to height in a fixed resize ratio (1: 3)
         crop_img = trim_machine.trim_width(img_gray)
+        # crop_img = trim_machine.trim_height(img_gray)
+        # crop_img = trim_machine.trim_width_height(img_gray)
 
         if plot:
-            crop_img_show = cv2.resize(crop_img, dsize=None, fx=0.1, fy=0.1)
-            img_gray_show = cv2.resize(img_gray, dsize=None, fx=0.1, fy=0.1)
+            crop_img_show = cv2.resize(crop_img, dsize=(256, 752))
+            img_gray_show = cv2.resize(img_gray, dsize=(256, 752))
             cv2.imshow("Ori", img_gray_show)
             cv2.imshow("Crop", crop_img_show)
             print(path.basename(img_path))
             cv2.waitKey(0)
-        cv2.imwrite(path.join(f.submit_test_trim_images, basename), crop_img)
+        else:
+            cv2.imwrite(path.join(f.submit_test_trim_images, basename), crop_img)
+        print(basename)
 main()

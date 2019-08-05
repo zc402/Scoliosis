@@ -40,5 +40,6 @@ if __name__ == '__main__':
             print(path.join(f.plot, train_img_name))
             # plt.show()
 
-    plot(f.train_img_flip, f.train_mat_flip)
-    plot(f.train_img, f.train_mat)
+    # plot(f.train_img_flip, f.train_mat_flip)
+    # plot(f.train_img, f.train_mat)
+    plot(f.val_img, f.val_mat)

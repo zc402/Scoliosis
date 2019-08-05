@@ -134,6 +134,7 @@ if __name__ == "__main__":
         NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
         NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
         NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, heat_scale)
+        NCHW_first_lrpt = cm.batch_gaussian_first_lrpt(train_imgs, train_labels)
         NCHW_pcm = np.concatenate((NCHW_corner_gau, NCHW_center_gau), axis=1)
 
         optimizer.zero_grad()

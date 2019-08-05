@@ -118,5 +118,6 @@ def simple_filter(pair_lr_value):
     pair_lr_value = _get_filtered_pairs(pair_lr_value, hmids_y, 190, 1120)
     # Keep index 0 ~ 17
     if pair_lr_value.shape[1] > 18:
-        pair_lr_value = pair_lr_value[:, :18, :]
+        pass
+        # pair_lr_value = pair_lr_value[:, :18, :]
     return pair_lr_value
