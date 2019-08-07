@@ -135,7 +135,8 @@ if __name__ == "__main__":
         NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
         NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, heat_scale)
         NCHW_first_lrpt = cm.batch_gaussian_first_lrpt(train_imgs, train_labels)
-        NCHW_pcm = np.concatenate((NCHW_corner_gau, NCHW_center_gau), axis=1)
+        # NCHW_last_lrpt = cm.batch_gaussian_last_lrpt(train_imgs, train_labels)
+        NCHW_pcm = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_first_lrpt), axis=1)
 
         optimizer.zero_grad()
         criterion = nn.MSELoss()
@@ -183,6 +184,6 @@ if __name__ == "__main__":
                 test_imgs_tensor = torch.from_numpy(test_imgs_01).to(device)
                 out_pcm, out_paf, _, _ = net(test_imgs_tensor)  # NCHW
 
-                save_grid_images(test_imgs_tensor, out_pcm[:, 4:5, ...], str(step))
+                save_grid_images(test_imgs_tensor, out_pcm[:, 6:7, ...], str(step))
                 # plot_norm_pts(test_imgs, test_out_pts, str(step))
             net.train()

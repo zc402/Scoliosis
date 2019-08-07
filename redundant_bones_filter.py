@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os.path as path
+import box_crop
+import cv2
 
 def _get_filtered_pairs(pair_lr_value, evidences, low, high):
     # delete redundant pairs
@@ -121,3 +123,26 @@ def simple_filter(pair_lr_value):
         pass
         # pair_lr_value = pair_lr_value[:, :18, :]
     return pair_lr_value
+
+class BoxNetFilter():
+    def __init__(self):
+        self.box = box_crop.Box()
+
+    def filter(self, pair_lr_value, image):
+        assert len(image.shape)==2
+        h, w = image.shape
+        h, w = float(h), float(w)
+        hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
+        hmids_x = hmids[:, 0]  # [p] Midpoint x
+        box = self.box
+        target_w = 256.
+        zoom_rate = target_w / w
+        target_h = h * zoom_rate
+        zoom_img_gray = cv2.resize(image, dsize=(int(target_w), int(target_h)), interpolation=cv2.INTER_CUBIC)
+
+        x_min, x_max, y_min, y_max = box.predict_box(zoom_img_gray)
+        x_left = int(w * x_min)
+        x_right = int(w * x_max)
+        pair_lr_value = _get_filtered_pairs(pair_lr_value, hmids_x, x_left, x_right)
+        return pair_lr_value
+

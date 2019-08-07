@@ -16,7 +16,7 @@ def cvsave(img, name):
     assert len(img.shape)==2
     cv2.imwrite(path.join(f.validation_plot_out,"{}.jpg".format(name)), img)
 
-def centeroid(heat, gaussian_thresh = 0.5):
+def centeroid(heat, gaussian_thresh = 0.3):
     # Parse center point of connected components
     # Return [p][xy]
     ret, heat = cv2.threshold(heat, gaussian_thresh, 1., cv2.THRESH_BINARY)
@@ -218,13 +218,15 @@ def max_angle_indices(bones, pair_lr_value):
     return max_ind1, max_ind2, max_angle_value
 
 
-def cobb_angles(np_pcm, np_paf, img=None, submit_test=True):
+box_filter = rbf.BoxNetFilter()
+def cobb_angles(np_pcm, np_paf, img, submit_test=True):
     # Return np array of [a1, a2, a3]
     paf_confidence_lowerbound = 0.7
     assert len(np_pcm.shape) == 3, "expected shape: (c,h,w)"
     assert np_pcm.shape[0] == 2, "expect 2 channels at dim 0 for l and r"
     assert len(np_paf.shape) == 3, "expected shape: (c,h,w)"
     assert np_paf.shape[0] == 1, "expect 1 channel at dim 0 for paf"
+    assert len(img.shape) == 2, "expected shape: (h,w)"
     heat_hw = np_pcm.shape[1:3]
     # [lr][xy] coordinate values
     lcrc_coords = center_coords(np_pcm)
@@ -239,6 +241,7 @@ def cobb_angles(np_pcm, np_paf, img=None, submit_test=True):
     if submit_test:
         # Use sigma of x, interval, length to delete wrong pairs
         pair_lr_value = rbf.simple_filter(pair_lr_value)
+    pair_lr_value = box_filter.filter(pair_lr_value, img)
     #rbf_dict = rbf.filter(pair_lr_value)
     #pair_lr_value = rbf_dict["pair_lr_value"]
     # [p_len][xy] vector coordinates. (sorted by bone confidence, not up to bottom)

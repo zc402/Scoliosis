@@ -84,10 +84,17 @@ class TrimMachine():
         zoom_img_gray = cv2.resize(img_gray, dsize=(int(target_w), int(target_h)), interpolation=cv2.INTER_CUBIC)
         box = self.box_predictor.predict_box(zoom_img_gray)
         x_min, x_max, _, _ = box
-        x_left = int(w * x_min - 0.02 * h)  # Use h, because w becomes wider if original image is wider.
-        x_right = int(w * x_max + 0.02 * h)
-        assert x_left < x_right
-        crop_img = img_gray[:, x_left: x_right]
+        # Center after crop
+        x_center = (w * x_min + w * x_max) / 2
+        expected_w = h / 3
+        x_left = max(0, x_center-(expected_w/2))
+        x_right = min(w, x_center+(expected_w/2))
+
+        crop_img = img_gray[:, int(x_left): int(x_right)]
+        # x_left = int(w * x_min - 0.02 * h)  # Use h, because w becomes wider if original image is wider.
+        # x_right = int(w * x_max + 0.02 * h)
+        # assert x_left < x_right
+        # crop_img = img_gray[:, x_left: x_right]
         return crop_img
 
     def trim_width_height(self, img_gray):
@@ -140,4 +147,6 @@ def main():
         else:
             cv2.imwrite(path.join(f.submit_test_trim_images, basename), crop_img)
         print(basename)
-main()
+
+if __name__=="__main__":
+    main()

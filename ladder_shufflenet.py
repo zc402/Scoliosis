@@ -203,7 +203,7 @@ class LadderModelAdd(nn.Module):
     # Use resnet style add when merging layers
     # Use 3 type pcm
 
-    def __init__(self, in_channels=1, out_channels=6+1):
+    def __init__(self, in_channels=1, out_channels=7+1):
         super(LadderModelAdd, self).__init__()
 
         self._stage_out_channels = [64, 64, 128, 256, 1024]  # init, e1, e2, e3, e4
@@ -249,6 +249,33 @@ class LadderModelAdd(nn.Module):
 
             nn.Conv2d(input_channels, output_channels, 1, 1, 0)
         )
+        """
+        # Spine Range
+        self.spine_range_A = nn.Sequential(
+            nn.Conv2d(input_channels, input_channels, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(input_channels),
+            nn.ReLU(inplace=True),
+
+            nn.Conv2d(input_channels, input_channels, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(input_channels),
+            nn.ReLU(inplace=True),
+
+            nn.Conv2d(input_channels, input_channels, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(input_channels),
+            nn.ReLU(inplace=True),
+
+            # Mean
+            # spine_range_B
+        )
+
+        self.spine_range_B = nn.Sequential(
+            nn.Conv2d(input_channels, 1, 1, 1, 0, bias=False),
+            nn.BatchNorm2d(input_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(input_channels, output_channels, 1, 1, 0),
+            nn.Sigmoid()
+        )
+        """
 
     def forward(self, x):
         init = self.initial(x)
@@ -266,34 +293,14 @@ class LadderModelAdd(nn.Module):
         d1 = self.decoder1(d2_cat)
 
         final = self.final(d1)
+        """
+        A = self.spine_range_A(d1)
+        A = torch.mean(A, dim=3, keepdim=True)
+        B = self.spine_range_B(A)
+        """
+        # pcm, paf, loss_pcm, loss_paf, spine_range
+        return final[:, 0:7, :, :], final[:, 7:8, :, :], final[:, 0:7, :, :], final[:, 7:8, :, :]
 
-        return final[:, 0:6, :, :], final[:, 6:7, :, :], final[:, 0:6, :, :], final[:, 6:7, :, :]  # pcm, paf, loss_pcm, loss_paf
-
-
-""" class MultiLadder(nn.Module):
-    def __init__(self):
-        super(MultiLadder, self).__init__()
-        self.stage1 = LadderModel(in_channels=1, out_channels=3)
-        for i in range(2, 5, 1):
-            stage_n = LadderModel(in_channels=4, out_channels=3)
-            setattr(self, 'stage{}'.format(i), stage_n)
-
-    def forward(self, img):
-        x, _, _, = self.stage1(img)
-        loss_list = [x]  # pcm(2), paf(1)
-        for i in range(2, 5, 1):
-            x = torch.cat([img, x], dim=1)
-            stage_n = getattr(self, 'stage{}'.format(i))
-            x, _, _, = stage_n(x)
-            loss_list.append(x)
-
-        # Loss
-        loss_tensor = torch.stack(loss_list, dim=0)
-
-        loss_tensor = torch.mean(loss_tensor, dim=0)
-
-        return x[:, 0:2, :, :], x[:, 2:3, :, :], loss_tensor[:, 0:2, :, :], loss_tensor[:, 2:3, :, :]
-"""
 
 if __name__=="__main__":
     import numpy as np

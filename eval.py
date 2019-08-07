@@ -59,7 +59,7 @@ def plot_test_images(img_folder, out_folder):
 
         # Plot on image
         # RGB: Blue, Yellow, Cyan, Magenta, Red, Lime, Green
-        colors = np.array([(0,0,255), (255,255,0), (0,255,255), (255,0,255), (255,0,0), (0,255,0), (0,128,0)], np.float32)
+        colors = np.array([(0,0,255), (255,255,0), (0,255,255), (255,0,255), (255,0,0), (0,255,0), (255,0,0), (255,255,0)], np.float32)
         # colors = np.array([(255,0,0), (0,255,0), (0,128,0)], np.float32)
 
         bgr_colors = colors[:, ::-1]  # [Channel][Color]
@@ -74,9 +74,10 @@ def plot_test_images(img_folder, out_folder):
         lt_rt_img = np.amax(ch_HWCo[0:2], axis=0)
         lb_rb_img = np.amax(ch_HWCo[2:4], axis=0)
         lc_rc_img = np.amax(ch_HWCo[4:6], axis=0)
-        paf_img = ch_HWCo[6]
+        first_last_img = np.amax(ch_HWCo[6:7], axis=0)
+        paf_img = ch_HWCo[7]
         img_bgr = img_bgr[:,:,0,:] * np.ones([3])  # Expand color channels 1->3
-        grid_image = np.concatenate([img_bgr, lt_rt_img, lb_rb_img, lc_rc_img, paf_img], axis=1)  # Concat to Width dim, H W C
+        grid_image = np.concatenate([img_bgr, lt_rt_img, lb_rb_img, lc_rc_img, first_last_img, paf_img], axis=1)  # Concat to Width dim, H W C
         grid_image = grid_image.astype(np.uint8)
         img_name = path.basename(img_path)
         cv2.imwrite(path.join(out_folder, img_name), grid_image)
