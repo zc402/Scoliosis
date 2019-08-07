@@ -117,11 +117,42 @@ def simple_filter(pair_lr_value):
     # delete y < 190
     hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
     hmids_y = hmids[:, 1]  # [p] Midpoint y
-    pair_lr_value = _get_filtered_pairs(pair_lr_value, hmids_y, 190, 1120)
+    pair_lr_value = _get_filtered_pairs(pair_lr_value, hmids_y, 190, 950)
     # Keep index 0 ~ 17
-    if pair_lr_value.shape[1] > 18:
-        pass
-        # pair_lr_value = pair_lr_value[:, :18, :]
+    if pair_lr_value.shape[1] > 17:
+        pair_lr_value = pair_lr_value[:, :17, :]
+    return pair_lr_value
+
+def centeroid(heat, gaussian_thresh = 0.5):
+    # Parse center point of connected components
+    # Return [p][xy]
+    ret, heat = cv2.threshold(heat, gaussian_thresh, 1., cv2.THRESH_BINARY)
+    heat = np.array(heat * 255., np.uint8)
+    # num: point number + 1 background
+    num, labels = cv2.connectedComponents(heat)
+    coords = []
+    for label in range(1, num):
+        mask = np.zeros_like(labels, dtype=np.uint8)
+        mask[labels == label] = 255
+        M = cv2.moments(mask)
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+        coords.append([cX, cY])
+    return coords
+
+def filter_by_spine_range(spine_range, pair_lr_value):
+    h, w = spine_range.shape
+    spine_range = spine_range[:h//2, 80:-80]
+    cps = centeroid(spine_range, gaussian_thresh=0.3)  # p, xy
+    hmids = (pair_lr_value[0] + pair_lr_value[1]) / 2  # Horizontal mid points, [p][xy]
+    hmids_y = hmids[:, 1]  # [p] Midpoint y
+
+    if len(cps) != 0:
+        cps = np.array(cps)
+        cps_Y = cps[:, 1]
+        largest_ind = np.argsort(cps_Y)[-1]
+        largest_Y = cps_Y[largest_ind]
+        pair_lr_value = _get_filtered_pairs(pair_lr_value, hmids_y, largest_Y, 1120)
     return pair_lr_value
 
 class BoxNetFilter():
