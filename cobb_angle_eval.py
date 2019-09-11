@@ -40,12 +40,14 @@ def run_on_submit_test(net_heat):
         np_norm_img = np_img / 255.
         t_norm_img = torch.from_numpy(np_norm_img).cuda()
         with torch.no_grad():
-            out_pcm, out_paf, _, _ = net_heat(t_norm_img)
+            out_dict = net_heat(t_norm_img)
 
-        np_pcm = out_pcm.detach().cpu().numpy()
-        np_paf = out_paf.detach().cpu().numpy()
 
-        cobb_dict = cap.cobb_angles(np_pcm[0, 4:6], np_paf[0], np_img_ori, np_pcm[0, 6], submit_test=True)
+        np_pcm_lrcenter = out_dict["pcm"].detach().cpu().numpy()[0, 4:6]
+        np_paf_center = out_dict["paf"].detach().cpu().numpy()[0, 1:2]
+        np_neck = out_dict["pcm"].detach().cpu().numpy()[0, 6]
+
+        cobb_dict = cap.cobb_angles(np_pcm_lrcenter, np_paf_center, np_img_ori, np_neck, submit_test=True)
         pred_angles, pairs_img, pairs_lr_value = cobb_dict["angles"], cobb_dict["pairs_img"], cobb_dict["pair_lr_value"]
         np.save(path.join(f.validation_plot_out, "{}.npy".format(filename)), pairs_lr_value)
         result_line = [filename, float(pred_angles[0]), float(pred_angles[1]), float(pred_angles[2])]

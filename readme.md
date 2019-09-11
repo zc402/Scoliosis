@@ -2,7 +2,7 @@
 
 ## Train a model and validate
 - Extract train-val set as boostnet_labeldata to ../ScoliosisData/
-- Run `python3 fliplr_and_points.py` to generate fliplr images
+- (Integrated in resize_images.py) Run `python3 fliplr_and_points.py` to generate fliplr images
 - (Optional) Run `python3 plot_points` to plot labels on images
 - Run `python3 crop_submit_test_by_box_net` to crop image
 - Run `python3 resize_images.py` to shrink images in train and val set to same size

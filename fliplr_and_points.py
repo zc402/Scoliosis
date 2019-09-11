@@ -42,9 +42,10 @@ def flip_lr(img_folder, mat_folder, save_img_folder, save_label_folder):
         cv2.imwrite(flip_img_path, img_flip)
         print(flip_img_path)
 
-
-if __name__ == '__main__':
-
+def main():
     [os.makedirs(p, exist_ok=True) for p in [f.train_img_flip, f.train_mat_flip, f.val_img_flip, f.val_mat_flip]]
     flip_lr(f.train_img, f.train_mat, f.train_img_flip, f.train_mat_flip)
     flip_lr(f.val_img, f.val_mat, f.val_img_flip, f.val_mat_flip)
+
+if __name__ == '__main__':
+    main()

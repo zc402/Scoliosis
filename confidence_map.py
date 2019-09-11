@@ -144,7 +144,38 @@ class ConfidenceMap():
         paf_img = paf_img / 255.
         return paf_img
 
-    def batch_lines_LRCenter(self, imgs, pts, zoom):
+    def batch_lines(self, heat_hw, l_pts, r_pts):
+        l_pts, r_pts = np.array(l_pts), np.array(r_pts)
+        heat_hw = np.array(heat_hw)
+        assert l_pts.shape[0] == r_pts.shape[0]
+        assert len(heat_hw) == 2
+        paf_imgs = []  # NHW
+        for i in range(l_pts.shape[0]):
+            paf_img = self._lines_on_img(heat_hw, l_pts[i], r_pts[i])
+            paf_imgs.append(paf_img)
+        paf_imgs = np.asarray(paf_imgs)[:, np.newaxis]  # NCHW
+        return paf_imgs
+
+    def batch_lines_LRTop(self, heat_hw, batch_labels):
+        """
+        Draw part affinity field for Left Right Top centers
+        :param batch_labels:
+        :return: pafs shape: NCHW
+        """
+        batch_labels = np.array(batch_labels)
+        lps = batch_labels[:, 0::4, :]
+        rps = batch_labels[:, 1::4, :]
+        pafs = self.batch_lines(heat_hw, lps, rps)
+        return pafs
+
+    def batch_lines_LRBottom(self, heat_hw, batch_labels):
+        batch_labels = np.array(batch_labels)
+        lps = batch_labels[:, 2::4, :]
+        rps = batch_labels[:, 3::4, :]
+        pafs = self.batch_lines(heat_hw, lps, rps)
+        return pafs
+
+    def batch_lines_LRCenter(self, heat_hw, pts, zoom):
         """
         Draw Part Affinity Fields (no direction, 1 dim) between each 2 center points.
         :param imgs:
@@ -152,19 +183,14 @@ class ConfidenceMap():
         :param zoom:
         :return:
         """
-        hw = np.asarray(np.asarray(imgs).shape[1:3])
+        hw = np.array(heat_hw)
         if np.all(hw % zoom) == 0:
             hw = hw // zoom
         else:
             raise RuntimeError("Image size can not be divided by %d" % zoom)
         pts = np.array(pts) / zoom
         l_bcs, r_bcs = self._find_LCenter_RCenter(pts)  # [N][17][xy]
-        paf_imgs = []  # NHW
-        for i in range(len(imgs)):
-            paf_img = self._lines_on_img(hw, l_bcs[i], r_bcs[i])
-            paf_imgs.append(paf_img)
-        paf_imgs = np.asarray(paf_imgs)[:,np.newaxis]  # NCHW
-        return paf_imgs
+        return self.batch_lines(hw, l_bcs, r_bcs)
 
     def batch_gaussian_first_lrpt(self, imgs, batch_labels):
 
@@ -187,13 +213,51 @@ class ConfidenceMap():
         imgs = np.asarray(imgs)
         assert len(imgs.shape) == 3, "(N, h, w)"
         batch_labels = np.array(batch_labels)
-        b_la_y = batch_labels[:, :, 1]
-        b_maxY = np.max(b_la_y, axis=-1)
-        gau = np.zeros_like(imgs, dtype=np.float32)  # NHW
-        for i in range(gau.shape[0]):
-            gau[i, b_maxY[i]:-1, :] = 1.
-        gau = gau[:, np.newaxis, :, :]  # NCHW
-        return gau
+
+        def find_max_Y_index(pts):
+            assert len(pts.shape) == 3
+            pts_Y = pts[:, :, 1]
+            sorted_Y_ind = np.argsort(pts_Y)
+            max_Y_ind = sorted_Y_ind[:, -1]
+            return max_Y_ind
+
+        left_pts = batch_labels[:, 0::2, :]
+        right_pts = batch_labels[:, 1::2, :]
+
+        left_indices = find_max_Y_index(left_pts)
+        right_indices = find_max_Y_index(right_pts)  # indices on batch
+
+        l_max = np.array([left_pts[b, ind, :] for b, ind in enumerate(left_indices)])
+        r_max = np.array([right_pts[b, ind, :] for b, ind in enumerate(right_indices)])
+
+        lrpt = np.stack([l_max, r_max], axis=0)[:, :, np.newaxis, :]  # [tl tr][batch][Joint][xy]
+        lrNHW = np.array([self._batch_gaussian(imgs.shape[1:3], pts) for pts in lrpt])
+        NHW = np.max(lrNHW, axis=0)
+        NCHW = NHW[:, np.newaxis, :, :]
+        return NCHW
+
+    def batch_spine_mask(self, heat_hw, batch_labels):
+        batch_labels = np.asarray(batch_labels)
+        assert len(heat_hw) == 2
+        assert len(batch_labels.shape) == 3, "(N, P, xy)"
+        def draw_polygon(hw, labels):
+            assert len(hw) == 2, "(h, w)"
+            assert len(labels.shape) == 2, "(P, xy)"
+            mask = np.zeros(hw, dtype=np.uint8)
+            for p in range(0, labels.shape[0], 4):
+                p1234 = labels[p:p+4, :].astype(np.int32)
+                p1243 = np.stack([p1234[0, :], p1234[1, :], p1234[3, :], p1234[2, :]],
+                                 axis=0)
+                cv2.fillPoly(mask, [p1243], 255)
+            return mask
+        batch_mask = [draw_polygon(heat_hw, labels) for labels in batch_labels[:]]
+        batch_mask = np.asarray(batch_mask, np.float32)
+        batch_mask = batch_mask / 255.
+        batch_mask = batch_mask[:, np.newaxis, :, :]
+        return batch_mask
+
+    def batch_spine_mask_top3(self, heat_hw, batch_labels):
+        pass
 
 
 
@@ -206,16 +270,21 @@ def main():
     ts = time.time()
     cm = ConfidenceMap()
     heat_scale = 1
+    heat_hw = np.asarray(train_imgs).shape[1:3]
     NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
     NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
-    NCHW_lines = cm.batch_lines_LRCenter(train_imgs, train_labels, heat_scale)
+    NCHW_c_lines = cm.batch_lines_LRCenter(heat_hw, train_labels, heat_scale)
+    NCHW_t_lines = cm.batch_lines_LRTop(heat_hw, train_labels)
+    NCHW_b_lines = cm.batch_lines_LRBottom(heat_hw, train_labels)
+    NCHW_spine_mask = cm.batch_spine_mask(heat_hw, train_labels)
     NCHW_first_lrpt = cm.batch_gaussian_first_lrpt(train_imgs, train_labels)
-    # NCHW_last_lrpt = cm.batch_gaussian_last_lrpt(train_imgs, train_labels)
-    NCHW_gaussian = np.concatenate((NCHW_lines, NCHW_first_lrpt), axis=1)#NCHW_corner_gau, NCHW_center_gau, NCHW_lines, NCHW_first_lrpt), axis=1)
+    NCHW_last_lrpt = cm.batch_gaussian_last_lrpt(train_imgs, train_labels)
+    NCHW_gaussian = np.concatenate((NCHW_first_lrpt, NCHW_last_lrpt, NCHW_spine_mask), axis=1)#NCHW_corner_gau, NCHW_center_gau, NCHW_lines, NCHW_first_lrpt), axis=1)
     te = time.time()
     print("Duration for gaussians: %f" % (te-ts))  # Time duration for generating gaussians
     for n in range(NCHW_gaussian.shape[0]):
         for c in range(NCHW_gaussian.shape[1]):
+            assert NCHW_gaussian.max() < 1.5, "expect normalized values"
             cv2.imshow("Image", train_imgs[n])
             g = NCHW_gaussian[n, c]
             g = cv2.resize(g, dsize=None, fx=heat_scale, fy=heat_scale)

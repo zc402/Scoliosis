@@ -15,6 +15,9 @@ import os
 import utils.bi_resize as br
 import cv2
 import folders as f
+import argparse
+import shutil
+import fliplr_and_points
 
 def resize_save(dst_wh, img_folder, mat_folder, save_img_folder, save_label_folder, plot=False):
     """
@@ -92,6 +95,18 @@ def crop(img_folder):
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--clean", action="store_true")
+    args = parser.parse_args()
+    if args.clean:
+        print("Remove all generated folders")
+        list(map(lambda x: shutil.rmtree(x, ignore_errors=True),
+                 [f.resize_train_img, f.resize_train_label,
+                  f.resize_test_img, f.resize_test_label,
+                  f.resize_submit_test_img, f.resize_trainval_img,
+                  f.resize_trainval_label, f.train_img_flip, f.train_mat_flip,
+                  f.val_img_flip, f.val_mat_flip]))
+
     [os.makedirs(f, exist_ok=True) for f in [f.resize_train_img, f.resize_train_label,
                                              f.resize_test_img, f.resize_test_label,
                                              f.resize_submit_test_img, f.resize_trainval_img,
@@ -101,6 +116,9 @@ if __name__ == "__main__":
     # Resize, crop submit test images
     # resize_save((384, 1120), f.submit_test_img, None, f.resize_submit_test_img, None)  # Was (320, 928)
     resize_save((384, 1120), f.submit_test_trim_images, None, f.resize_submit_test_img, None)  # Was (320, 928)
+
+    print("flip lr")
+    fliplr_and_points.main()
 
     # less_head(f.resize_submit_test_img)  # For angle_net
     # crop(f.resize_submit_test_img)  # For angle_net
