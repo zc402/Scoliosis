@@ -9,12 +9,11 @@ import folders as f
 import os
 import argparse
 import cobb_angle_parse as cap
+import csv
 
 
 # Run evaluation on submit test set
 def run_on_submit_test(net_heat):
-    import csv
-    import os
     os.makedirs(f.submit_test_plot_pairs, exist_ok=True)
     result_name_an123 = []  # Parsing results to be wrote
     submit_example = path.join(f.submit_test_img, "sample_submission.csv")
@@ -24,7 +23,7 @@ def run_on_submit_test(net_heat):
         result_name_an123.append(example_content[0])  # Title line
         name_an123 = example_content[1:]  # Exclude first title line "name, an1, an2, an3"
 
-    save_path = f.checkpoint_heat_trainval_path  # FIXME: change back to trainval path
+    save_path = f.checkpoint_heat_trainval_path
     # save_path = f.checkpoint_heat_path
     net_heat.load_state_dict(torch.load(save_path))
 
@@ -44,10 +43,10 @@ def run_on_submit_test(net_heat):
 
 
         np_pcm_lrcenter = out_dict["pcm"].detach().cpu().numpy()[0, 4:6]
-        np_paf_center = out_dict["paf"].detach().cpu().numpy()[0, 1:2]
+        np_paf_center = out_dict["paf"].detach().cpu().numpy()[0, 0:1]
         np_neck = out_dict["pcm"].detach().cpu().numpy()[0, 6]
 
-        cobb_dict = cap.cobb_angles(np_pcm_lrcenter, np_paf_center, np_img_ori, np_neck, submit_test=True)
+        cobb_dict = cap.cobb_angles(np_pcm_lrcenter, np_paf_center, np_img_ori, np_neck, use_filter=True)
         pred_angles, pairs_img, pairs_lr_value = cobb_dict["angles"], cobb_dict["pairs_img"], cobb_dict["pair_lr_value"]
         np.save(path.join(f.validation_plot_out, "{}.npy".format(filename)), pairs_lr_value)
         result_line = [filename, float(pred_angles[0]), float(pred_angles[1]), float(pred_angles[2])]
@@ -76,7 +75,7 @@ def run_on_validation(net_heat):
         np_pcm = out_pcm.detach().cpu().numpy()
         np_paf = out_paf.detach().cpu().numpy()
 
-        cobb_dict = cap.cobb_angles(np_pcm[0, 4:6], np_paf[0], test_imgs[0], np_pcm[0, 6], submit_test=False)
+        cobb_dict = cap.cobb_angles(np_pcm[0, 4:6], np_paf[0], test_imgs[0], np_pcm[0, 6], use_filter=False)
         pred_angles, pairs_img, pairs_lr_value = cobb_dict["angles"], cobb_dict["pairs_img"], cobb_dict["pair_lr_value"]
         smape = cap.SMAPE(pred_angles, test_angles[0])
         avg_smape.append(smape)
@@ -134,6 +133,68 @@ def parse_cobb_angle_by_annotated_points():
     # print("number of isS-notS:", counter_isS, counter_notS)
 
 
+def gen_manual_img_label():
+    """Generate img, label of manually marked test set"""
+    import glob
+    # npy file, point range 0~1
+    npy_list = glob.glob(path.join(f.manual_npy_submit_test, "*.npy"))
+    name_list = [path.splitext(path.basename(npy))[0] for npy in npy_list]
+    img_list = [path.join(f.resize_submit_test_img, npy)+".jpg" for npy in name_list]
+    for i in range(len(npy_list)):
+        npy = np.load(npy_list[i]) #[p][xy]
+        img_path = img_list[i]
+        img = cv2.imread(img_path, flags=cv2.IMREAD_GRAYSCALE)
+        ori_npy = npy * [img.shape[1], img.shape[0]]
+        img_name = path.basename(img_path).replace(".jpg", "")
+        yield img, ori_npy, img_name
+
+def eval_manually_marked_submit_test():
+    import confidence_map as cmap
+    # Prepare the submit csv file
+    os.makedirs(f.submit_test_plot_pairs, exist_ok=True)
+    result_name_an123 = []  # Parsing results to be wrote
+    submit_example = path.join(f.submit_test_img, "sample_submission.csv")
+    with open(submit_example, 'r') as example:
+        reader = csv.reader(example)
+        example_content = list(reader)
+        result_name_an123.append(example_content[0])  # Title line
+        name_an123 = example_content[1:]  # Exclude first title line "name, an1, an2, an3"
+
+    # Read manually annotated npy
+    gen = gen_manual_img_label()
+    for img, manual_label, filename in gen:
+        # Manually marked labels
+        cm = cmap.ConfidenceMap()
+        # Classify labels as (top left, top right, bottom left, bottom right, left center, right center)
+        heat_scale = 1
+        img = [img]  # batch, h, w
+        manual_label = [manual_label]
+        heat_hw = np.asarray(img).shape[1:3]
+        NCHW_corner_gau = cm.batch_gaussian_split_corner(img, manual_label, heat_scale)
+        NCHW_center_gau = cm.batch_gaussian_LRCenter(img, manual_label, heat_scale)
+        NCHW_c_lines = cm.batch_lines_LRCenter(heat_hw, manual_label, heat_scale)
+        NCHW_first_lrpt = cm.batch_gaussian_first_lrpt(img, manual_label)
+        NCHW_paf = NCHW_c_lines
+        NCHW_pcm = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_first_lrpt), axis=1)
+
+        np_pcm_lrcenter = NCHW_pcm[0, 4:6]
+        np_paf_center = NCHW_paf[0, 0:1]
+        np_neck = NCHW_pcm[0, 6]
+
+        cobb_dict = cap.cobb_angles(np_pcm_lrcenter, np_paf_center, img[0], np_neck, use_filter=False)
+        pred_angles, pairs_img, pairs_lr_value = cobb_dict["angles"], cobb_dict["pairs_img"], cobb_dict["pair_lr_value"]
+        np.save(path.join(f.validation_plot_out, "{}.npy".format(filename)), pairs_lr_value)
+        result_line = [filename, float(pred_angles[0]), float(pred_angles[1]), float(pred_angles[2])]
+        result_name_an123.append(result_line)
+        print(filename)
+        # cap.cvsave(pairs_img, "{}".format(filename))
+        cv2.imwrite(path.join(f.submit_test_plot_pairs, "{}.jpg".format(filename)), pairs_img)
+
+        with open(path.join(f.data_root, "submit_result.csv"), "w+", newline='') as result_csv_file:
+            writer = csv.writer(result_csv_file)
+            [writer.writerow(l) for l in result_name_an123]
+
+
 if __name__ == "__main__":
     net = ladder_shufflenet.LadderModelAdd()
     net.eval()
@@ -142,4 +203,4 @@ if __name__ == "__main__":
 
     # run_on_validation(net)
     run_on_submit_test(net)
-    # parse_cobb_angle_by_annotated_points()
+    # eval_manually_marked_submit_test()

@@ -221,7 +221,7 @@ def max_angle_indices(bones, pair_lr_value):
 
 
 box_filter = rbf.BoxNetFilter()
-def cobb_angles(np_pcm, np_paf, img, spine_range, submit_test=True):
+def cobb_angles(np_pcm, np_paf, img, spine_range, use_filter=True):
     # Return np array of [a1, a2, a3]
     paf_confidence_lowerbound = 0.7
     assert len(np_pcm.shape) == 3, "expected shape: (c,h,w)"
@@ -241,9 +241,9 @@ def cobb_angles(np_pcm, np_paf, img, spine_range, submit_test=True):
     pair_lr_value = pair_args_to_value(pair_lr, lcrc_coords)
     # Sort pairs by y
     pair_lr_value = sort_pairs_by_y(pair_lr_value)
-    pair_lr_value = box_filter.filter(pair_lr_value, img)  # Left Right
-    pair_lr_value = rbf.filter_by_spine_range(spine_range, pair_lr_value)
-    if submit_test:
+    if use_filter:
+        pair_lr_value = box_filter.filter(pair_lr_value, img)  # Left Right
+        pair_lr_value = rbf.filter_by_spine_range(spine_range, pair_lr_value)
         # Leave 16 pairs. Must be the last filter
         pair_lr_value = rbf.simple_filter(pair_lr_value)  # Top pixels
 

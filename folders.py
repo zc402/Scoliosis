@@ -61,3 +61,7 @@ resize_trainval_label = path.join(resized_data, "labels", "train-val")
 train_box_results = path.join(data_root, "train_box_resutls")
 submit_test_box_plot = path.join(data_root, "submit_test_box_plot")
 submit_test_trim_images = path.join(data_root, "submit_test_trim_images")
+
+# Manual labeled
+manual_npy_submit_test = path.join(data_root, "manual_2")
+manual_fix_train = path.join(data_root, "manual_1")

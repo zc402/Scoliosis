@@ -133,15 +133,15 @@ if __name__ == "__main__":
         heat_hw = np.asarray(train_imgs).shape[1:3]
         NCHW_corner_gau = cm.batch_gaussian_split_corner(train_imgs, train_labels, heat_scale)
         NCHW_center_gau = cm.batch_gaussian_LRCenter(train_imgs, train_labels, heat_scale)
-        NCHW_t_lines = cm.batch_lines_LRTop(heat_hw, train_labels)
+        # NCHW_t_lines = cm.batch_lines_LRTop(heat_hw, train_labels)
         NCHW_c_lines = cm.batch_lines_LRCenter(heat_hw, train_labels, heat_scale)
-        NCHW_b_lines = cm.batch_lines_LRBottom(heat_hw, train_labels)
+        # NCHW_b_lines = cm.batch_lines_LRBottom(heat_hw, train_labels)
         NCHW_first_lrpt = cm.batch_gaussian_first_lrpt(train_imgs, train_labels)
-        NCHW_last_lrpt = cm.batch_gaussian_last_lrpt(train_imgs, train_labels)
-        NCHW_paf = np.concatenate((NCHW_t_lines, NCHW_c_lines, NCHW_b_lines), axis=1)
-        NCHW_pcm = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_first_lrpt, NCHW_last_lrpt), axis=1)
+        # NCHW_last_lrpt = cm.batch_gaussian_last_lrpt(train_imgs, train_labels)
+        NCHW_paf = NCHW_c_lines
+        NCHW_pcm = np.concatenate((NCHW_corner_gau, NCHW_center_gau, NCHW_first_lrpt), axis=1)
 
-        NCHW_spine_mask = cm.batch_spine_mask(heat_hw, train_labels)
+        # NCHW_spine_mask = cm.batch_spine_mask(heat_hw, train_labels)
 
 
         optimizer.zero_grad()
@@ -154,16 +154,16 @@ if __name__ == "__main__":
         train_imgs = torch.from_numpy(np.asarray(train_imgs)).cuda()
         tensor_gt_pcm = torch.from_numpy(np.asarray(NCHW_pcm)).cuda()
         tensor_gt_paf = torch.from_numpy(np.asarray(NCHW_paf)).cuda()
-        tensor_gt_mask = torch.from_numpy(np.asarray(NCHW_spine_mask)).cuda()
+        # tensor_gt_mask = torch.from_numpy(np.asarray(NCHW_spine_mask)).cuda()
 
         res_dict = net(train_imgs)
-        out_pcm, out_paf, out_mask = res_dict["pcm"], res_dict["paf"], res_dict["mask"]
+        out_pcm, out_paf = res_dict["pcm"], res_dict["paf"]
 
         # Loss
         loss1 = criterion(out_pcm, tensor_gt_pcm)
         loss2 = criterion(out_paf, tensor_gt_paf)
-        loss3 = criterion(out_mask, tensor_gt_mask)
-        loss = loss1 + (loss2 / 5) + (loss3 / 50)  # pcm + paf + mask
+        # loss3 = criterion(out_mask, tensor_gt_mask)
+        loss = loss1 + (loss2 / 5) # + (loss3 / 50)  # pcm + paf + mask
         loss.backward()
         optimizer.step()
         step = step + 1
@@ -190,7 +190,7 @@ if __name__ == "__main__":
             with torch.no_grad():
                 test_imgs_tensor = torch.from_numpy(test_imgs_01).to(device)
                 test_res_dict = net(test_imgs_tensor)  # NCHW
-                out_mask = test_res_dict["mask"]
-                save_grid_images(test_imgs_tensor, out_mask[:, 0:1, ...], str(step))
+                out_paf = test_res_dict["paf"]
+                save_grid_images(test_imgs_tensor, out_paf[:, 0:1, ...], str(step))
                 # plot_norm_pts(test_imgs, test_out_pts, str(step))
             net.train()

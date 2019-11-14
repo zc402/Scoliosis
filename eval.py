@@ -48,21 +48,22 @@ def plot_test_images(img_folder, out_folder):
         test_imgs_tensor = torch.from_numpy(img_01).to(device)
         with torch.no_grad():
             out_dict = net(test_imgs_tensor)  # NCHW
-            out_pcm, out_paf, out_mask = out_dict["pcm"], out_dict["paf"], out_dict["mask"]
+            out_pcm, out_paf = out_dict["pcm"], out_dict["paf"]
 
         # Plot and save image
-        heats = torch.cat([test_imgs_tensor, out_pcm, out_paf, out_mask], dim=1)
+        heats = torch.cat([test_imgs_tensor, out_pcm[:, 0:6], out_paf], dim=1)
         # heats = F.interpolate(heats, size=(test_imgs_tensor.size(2), test_imgs_tensor.size(3)), mode="bilinear")
         np_heats = heats.detach().cpu().numpy()  # NCHW [0,1]
         np_heats = np.clip(np_heats, 0., 1.)[0]  # Remove dim 'N'
         np_heats = np.transpose(np_heats, (1, 2, 0))  # HWC [0,1]
 
         # Plot on image
-        # RGB: Blue, Yellow, Cyan, Magenta, Red, Lime, Green
-        # colors = np.array([(0,0,255), (255,255,0), (0,255,255), (255,0,255), (255,0,0), (0,255,0), (255,0,0), (255,255,0)], np.float32)
-        colors = np.array([(0,255,0)], np.float32)
+        # 6 corner 1 neck 1 paf
+        # RGB: White(original image), Blue, Yellow, Cyan, Magenta, Red, Lime, Green
+        colors = np.array([(255, 255, 255), (0,0,255), (255,255,0), (0,255,255), (255,0,255), (255,0,0), (0,255,0), (0,128,0)], np.float32)
+        # colors = np.array([(0,255,0)], np.float32)
 
-        bgr_colors = colors[::-1]  # [Channel][Color]
+        bgr_colors = colors[:, ::-1]  # [Channel][Color]
         np_heats = np_heats[..., np.newaxis]  # HW[Channel][Color] [0,1]
         # Heat mask
         color_heats = np_heats * bgr_colors  # HW[Channel][Color]
@@ -73,13 +74,13 @@ def plot_test_images(img_folder, out_folder):
         ch_HWCo = np.split(img_heats, img_heats.shape[2], axis=2)  # CH [H W 1 CO]
         ch_HWCo = [np.squeeze(HW1Co, axis=2) for HW1Co in ch_HWCo]  # CH [H W CO]
 
-        # lt_rt_img = np.amax(ch_HWCo[0:2], axis=0)
-        # lb_rb_img = np.amax(ch_HWCo[2:4], axis=0)
-        # lc_rc_img = np.amax(ch_HWCo[4:6], axis=0)
-        # first_last_img = np.amax(ch_HWCo[6:7], axis=0)
-        # paf_img = ch_HWCo[7]
+        ori_img = ch_HWCo[0]
+        lt_rt_img = np.amax(ch_HWCo[1:3], axis=0)
+        lb_rb_img = np.amax(ch_HWCo[3:5], axis=0)
+        lc_rc_img = np.amax(ch_HWCo[5:7], axis=0)
+        paf_img = ch_HWCo[7]
         # img_bgr = img_bgr[:,:,0,:] * np.ones([3])  # Expand color channels 1->3
-        grid_image = np.concatenate(ch_HWCo, axis=1)  # Concat to Width dim, H W C
+        grid_image = np.concatenate([ori_img, lt_rt_img, lb_rb_img, lc_rc_img, paf_img], axis=1)  # Concat to Width dim, H W Color
         grid_image = grid_image.astype(np.uint8)
         img_name = path.basename(img_path)
         cv2.imwrite(path.join(out_folder, img_name), grid_image)
@@ -141,7 +142,7 @@ if __name__ == '__main__':
     parser.add_argument("--plot", action='store_true', default=False)
     args = parser.parse_args()
 
-    # plot_validation_set()
-    plot_submit_test_set()
+    plot_validation_set()
+    # plot_submit_test_set()
     #(deprecated) eval_submit_testset()
 

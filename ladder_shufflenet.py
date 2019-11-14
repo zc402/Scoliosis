@@ -131,7 +131,7 @@ class LadderModelAdd(nn.Module):
 
     def __init__(self, in_channels=1):  # out: pcm paf mask
         super(LadderModelAdd, self).__init__()
-        out_channels = 8 + 3 + 1
+        out_channels = 7 + 1  # 6 corner 1 neck 1 paf
         self._stage_out_channels = [64, 64, 128, 256, 1024]  # init, e1, e2, e3, e4
 
         self._stage_in_channels_dec = [1024, 256, 128, 64, 64]  # in: d4, d3, d2, d1, final
@@ -193,7 +193,7 @@ class LadderModelAdd(nn.Module):
 
         final = self.final(d1)
         # pcm, paf, spine-mask
-        res_dict = {"pcm": final[:, 0:8], "paf": final[:, 8:11], "mask": final[:, 11:12]}
+        res_dict = {"pcm": final[:, 0:7], "paf": final[:, 7:8]}
         return res_dict
 
 

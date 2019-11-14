@@ -30,9 +30,9 @@ if __name__ == '__main__':
             plt.style.use('grayscale')
             plt_img = plt.imread(train_img_path)
             plt.imshow(plt_img)
-            plt.scatter(x_list, y_list, color='yellow', s=10)
+            plt.scatter(x_list, y_list, color='white', s=3)
             for i in range(len(x_list)):
-                plt.annotate(i, (x_list[i], y_list[i]), color='red', size=5)
+                plt.annotate(i+1, (x_list[i]+15, y_list[i]), color='yellow', size=4)
             plt.axis("off")
 
             plt.savefig(path.join(f.plot, train_img_name), dpi=300)
@@ -41,5 +41,5 @@ if __name__ == '__main__':
             # plt.show()
 
     # plot(f.train_img_flip, f.train_mat_flip)
-    # plot(f.train_img, f.train_mat)
-    plot(f.val_img, f.val_mat)
+    plot(f.train_img, f.train_mat)
+    # plot(f.val_img, f.val_mat)
