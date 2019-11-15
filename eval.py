@@ -87,7 +87,7 @@ def plot_test_images(img_folder, out_folder):
         print(img_name)
         # cv2.imshow("image", grid_image)
         # cv2.waitKey()
-
+"""
 def eval_submit_testset():
     import csv
     result_name_an123 = []  # Parsing results to be wrote
@@ -134,7 +134,7 @@ def eval_submit_testset():
     with open(path.join(f.data_root, "submit_result.csv"), "w+", newline='') as result_csv_file:
         writer = csv.writer(result_csv_file)
         [writer.writerow(l) for l in result_name_an123]
-
+"""
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
