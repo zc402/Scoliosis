@@ -44,8 +44,8 @@ checkpoint_box_path = path.join(checkpoint, "checkpoint-box.pth")
 checkpoint_box_trainval_path = path.join(checkpoint, "checkpoint-box-trainval.pth")
 
 # Eval
-validation_plot_out = path.join(data_root, "validation_plot")
-submit_test_plot_out = path.join(data_root, "submit_test_plot")
+validation_plot_out = path.join(data_root, "validation_heatmaps")
+submit_test_plot_out = path.join(data_root, "submit_test_heatmaps")
 submit_test_plot_pairs = path.join(data_root, "submit_test_plot_pairs")
 
 # Angle csv

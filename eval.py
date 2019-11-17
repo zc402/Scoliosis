@@ -11,15 +11,7 @@ import torch.nn.functional as F
 import argparse
 
 
-def plot_validation_set():
-    # Validation Set
-    plot_test_images(f.resize_test_img, f.validation_plot_out)
-
-def plot_submit_test_set():
-    # Test set to be submitted
-    plot_test_images(f.resize_submit_test_img, f.submit_test_plot_out)
-
-def plot_test_images(img_folder, out_folder):
+def predict_heatmaps(img_folder, out_folder):
     os.makedirs(out_folder, exist_ok=True)
     test_imgs = glob.glob(path.join(img_folder, '*'))  # Wildcard of test images
     device = torch.device("cuda")  # CUDA
@@ -139,10 +131,16 @@ def eval_submit_testset():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--trainval", action='store_true', default=False)
-    parser.add_argument("--plot", action='store_true', default=False)
+    parser.add_argument("--dataset", type=str, help="Which set to predict? (val, test)", default="val")
     args = parser.parse_args()
 
-    plot_validation_set()
-    # plot_submit_test_set()
-    #(deprecated) eval_submit_testset()
+    if args.dataset == "val":
+        # Validation set
+        predict_heatmaps(f.resize_test_img, f.validation_plot_out)
+    elif args.dataset == "test":
+        # Submit test set
+        predict_heatmaps(f.resize_submit_test_img, f.submit_test_plot_out)
+    else:
+        print("Invalid dataset argument")
+
 
