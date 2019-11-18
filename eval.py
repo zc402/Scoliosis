@@ -103,7 +103,15 @@ def predict_heatmaps(img_folder, out_folder):
             mark_color = colors[i+1]
             for coord in coords:  # Same kind, different coordinate landmarks
                 cv2.circle(img_HWC, center=tuple(coord), radius=3, color=tuple([int(c) for c in mark_color]))
-        cv2.imwrite(path.join(out_folder, img_name+"_landmarks.jpg"), img_HWC)
+        cv2.imwrite(path.join(out_folder, "7marks_" + img_name), img_HWC)
+
+        coord_list = [centeroid(np_heats[:, :, c]) for c in range(1, 5)]  # 1 is original image
+        img_HWC = img_gray[:, :, np.newaxis] * np.ones((1, 1, 3))
+        for i, coords in enumerate(coord_list):  # Different heatmaps (corners)
+            mark_color = colors[i + 1]
+            for coord in coords:  # Same kind, different coordinate landmarks
+                cv2.circle(img_HWC, center=tuple(coord), radius=3, color=tuple([int(c) for c in mark_color]))
+        cv2.imwrite(path.join(out_folder, "4marks_" + img_name), img_HWC)
 
 
 
