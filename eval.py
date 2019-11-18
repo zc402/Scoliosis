@@ -10,6 +10,22 @@ import cv2
 import torch.nn.functional as F
 import argparse
 
+def centeroid(heat, gaussian_thresh = 0.5):
+    # Parse center point of connected components
+    # Return [p][xy]
+    ret, heat = cv2.threshold(heat, gaussian_thresh, 1., cv2.THRESH_BINARY)
+    heat = np.array(heat * 255., np.uint8)
+    # num: point number + 1 background
+    num, labels = cv2.connectedComponents(heat)
+    coords = []
+    for label in range(1, num):
+        mask = np.zeros_like(labels, dtype=np.uint8)
+        mask[labels == label] = 255
+        M = cv2.moments(mask)
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+        coords.append([cX, cY])
+    return coords
 
 def predict_heatmaps(img_folder, out_folder):
     os.makedirs(out_folder, exist_ok=True)
@@ -31,7 +47,7 @@ def predict_heatmaps(img_folder, out_folder):
         print("Heat Model loaded")
     else:
         raise FileNotFoundError("No checkpoint.pth at %s", save_path)
-
+    print("images to be predict:" + str(test_imgs))
     for img_path in test_imgs:
         img_gray = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)  # HW
         img = [[img_gray]]  # NCHW
@@ -42,25 +58,24 @@ def predict_heatmaps(img_folder, out_folder):
             out_dict = net(test_imgs_tensor)  # NCHW
             out_pcm, out_paf = out_dict["pcm"], out_dict["paf"]
 
-        # Plot and save image
+        # Plot and save image (exclude neck)
         heats = torch.cat([test_imgs_tensor, out_pcm[:, 0:6], out_paf], dim=1)
         # heats = F.interpolate(heats, size=(test_imgs_tensor.size(2), test_imgs_tensor.size(3)), mode="bilinear")
-        np_heats = heats.detach().cpu().numpy()  # NCHW [0,1]
+        np_heats = heats.detach().cpu().numpy()  # NCHW (0,1)
         np_heats = np.clip(np_heats, 0., 1.)[0]  # Remove dim 'N'
-        np_heats = np.transpose(np_heats, (1, 2, 0))  # HWC [0,1]
+        np_heats = np.transpose(np_heats, (1, 2, 0))  # HWC (0,1)
 
         # Plot on image
-        # 6 corner 1 neck 1 paf
+        # 6 corner 1 paf
         # RGB: White(original image), Blue, Yellow, Cyan, Magenta, Red, Lime, Green
         colors = np.array([(255, 255, 255), (0,0,255), (255,255,0), (0,255,255), (255,0,255), (255,0,0), (0,255,0), (0,128,0)], np.float32)
-        # colors = np.array([(0,255,0)], np.float32)
 
         bgr_colors = colors[:, ::-1]  # [Channel][Color]
-        np_heats = np_heats[..., np.newaxis]  # HW[Channel][Color] [0,1]
+        np_heats_c = np_heats[..., np.newaxis]  # HW[Channel][Color] [0,1]
         # Heat mask
-        color_heats = np_heats * bgr_colors  # HW[Channel][Color]
+        color_heats = np_heats_c * bgr_colors  # HW[Channel][Color]
         # Image as background
-        img_bgr = np.asarray(img_gray, np.float32)[..., np.newaxis][..., np.newaxis]  # [H][W][Ch][Co] [0,255]
+        img_bgr = np.asarray(img_gray, np.float32)[..., np.newaxis][..., np.newaxis]  # [H][W][Ch][Co] (0,255)
 
         img_heats = (img_bgr / 2.) + (color_heats / 2.)
         ch_HWCo = np.split(img_heats, img_heats.shape[2], axis=2)  # CH [H W 1 CO]
@@ -79,6 +94,20 @@ def predict_heatmaps(img_folder, out_folder):
         print(img_name)
         # cv2.imshow("image", grid_image)
         # cv2.waitKey()
+        ############################
+        # Gaussian to point
+        # coord_list shape=(heatmaps, coords, xy)
+        coord_list = [centeroid(np_heats[:, :, c]) for c in range(1, np_heats.shape[2])]  # 1 is original image
+        img_HWC = img_gray[:, :, np.newaxis] * np.ones((1,1,3))
+        for i, coords in enumerate(coord_list):  # Different heatmaps (corners)
+            mark_color = colors[i+1]
+            for coord in coords:  # Same kind, different coordinate landmarks
+                cv2.circle(img_HWC, center=tuple(coord), radius=3, color=tuple([int(c) for c in mark_color]))
+        cv2.imwrite(path.join(out_folder, img_name+"_landmarks.jpg"), img_HWC)
+
+
+
+
 """
 def eval_submit_testset():
     import csv
