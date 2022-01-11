@@ -7,7 +7,7 @@
 
 # Paper
 
-[Automated vertebral landmarks and spinal curvature estimation using non-directional part affinity fields] (https://www.sciencedirect.com/science/article/abs/pii/S0925231221000989)
+[Automated vertebral landmarks and spinal curvature estimation using non-directional part affinity fields](https://www.sciencedirect.com/science/article/abs/pii/S0925231221000989)
 
 # Preparation
 Acquire the datasets (see below).
