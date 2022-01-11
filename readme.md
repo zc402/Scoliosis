@@ -1,5 +1,14 @@
 #### Automated Vertebral Landmarks and Spinal Curvature Estimation using Non-directional Part Affinity Fields
 
+<p float="center">
+  <img src="doc/tight.jpg" width="90%" />
+  <img src="doc/loose.jpg" width="90%" />
+</p>
+
+# Paper
+
+[Automated vertebral landmarks and spinal curvature estimation using non-directional part affinity fields] (https://www.sciencedirect.com/science/article/abs/pii/S0925231221000989)
+
 # Preparation
 Acquire the datasets (see below).
 
